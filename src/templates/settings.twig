@@ -1,0 +1,38 @@
+{% import '_includes/forms.twig' as forms %}
+{{ forms.autosuggestField({
+    label: 'Rules Directory' | t('_priceadjuster'),
+    instructions: 'Directory containing rule JSON files. Supports Craft aliases (@root) and environment variables ($MY_VAR).' | t('_priceadjuster'),
+    id: 'rulesDirectory',
+    name: 'rulesDirectory',
+    value: settings.rulesDirectory,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    errors: settings.getErrors('rulesDirectory'),
+}) }}
+{{ forms.autosuggestField({
+    label: 'Export Directory' | t('_priceadjuster'),
+    instructions: 'Directory where exported CSV files are written. Supports Craft aliases and environment variables.' | t('_priceadjuster'),
+    id: 'exportDirectory',
+    name: 'exportDirectory',
+    value: settings.exportDirectory,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    errors: settings.getErrors('exportDirectory'),
+}) }}
+{{ forms.autosuggestField({
+    label: 'Import Directory' | t('_priceadjuster'),
+    instructions: 'Directory from which CSV files are read for import. Keep separate from Export Directory to preserve original files.' | t('_priceadjuster'),
+    id: 'importDirectory',
+    name: 'importDirectory',
+    value: settings.importDirectory,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    errors: settings.getErrors('importDirectory'),
+}) }}
+{{ forms.lightswitchField({
+    label: 'Re-save Products After Apply / Rollback' | t('_priceadjuster'),
+    instructions: 'Re-saves all affected products after prices are applied or rolled back, refreshing caches and triggering afterSave events (e.g. SetColorPriceJob). Disable for large batches where re-saves are not needed.' | t('_priceadjuster'),
+    id: 'resaveProducts',
+    name: 'resaveProducts',
+    on: settings.resaveProducts,
+}) }}
