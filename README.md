@@ -1,7 +1,8 @@
 # Price Adjuster — Craft Commerce Plugin
 A Craft CMS 5 plugin for **batch-scheduling future price changes** for Craft Commerce variants. Define price rules in JSON config files, stage them into the database, review and edit them in the Control Panel, then apply (or roll back) when the effective date arrives.
 
-__In development - not even alpha__
+
+__Disclaimer: This plugin is in early development and should not be used in production yet. The API is likely to change without deprecation, and there may be bugs or missing features. Concept, code and this Readme file mostly AI generated using Claude Sonnet 4.6.__
 
 ## Requirements
 - Craft CMS 5.x
