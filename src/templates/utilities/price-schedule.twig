@@ -42,11 +42,6 @@
     {% endif %}
 {% else %}
     {# ── Filtered by rule ── #}
-    {% if currentDate %}
-        <p style="margin-bottom:1rem;">
-            <a href="{{ url(craft.app.request.pathInfo, {rule: currentRule}) }}" class="go" style="font-size:.875rem;">← {{ currentRule }} (all dates)</a>
-        </p>
-    {% endif %}
     <h2 style="margin-bottom:1rem;">
         Rule: <strong>{{ currentRule }}</strong>
         {% if currentDate %}&nbsp;— Date: <strong>{{ currentDate }}</strong>{% endif %}
