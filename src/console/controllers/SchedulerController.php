@@ -4,6 +4,7 @@ namespace wsydney76\priceadjuster\console\controllers;
 
 use Craft;
 use craft\commerce\elements\Product;
+use craft\elements\Entry;
 use craft\commerce\elements\Variant;
 use craft\helpers\Console;
 use wsydney76\priceadjuster\events\BuildRowsEvent;
@@ -20,6 +21,7 @@ class SchedulerController extends Controller
     public ?string $rule = null;
     public ?string $date = null;
     public bool $resetPromotion = false;
+    public bool $replace = false;
 
     public function options($actionID): array
     {
@@ -27,6 +29,7 @@ class SchedulerController extends Controller
             'rule',
             'date',
             'resetPromotion',
+            'replace',
         ]);
     }
 
@@ -62,9 +65,22 @@ class SchedulerController extends Controller
 
     /**
      * Stage future prices in price_schedule.
+     *
+     * Use --replace to delete all matching staged records (by --rule / --date) before inserting.
      */
     public function actionStage(): int
     {
+        if ($this->replace) {
+            $existing = $this->getScheduleRecords(applied: null, requireFilter: false);
+            if (!empty($existing)) {
+                foreach ($existing as $record) {
+                    if (!$record->delete()) {
+                        $this->stderr("Failed deleting existing record {$record->id} ({$record->sku})\n", Console::FG_RED);
+                    }
+                }
+                $this->stdout(sprintf("Deleted %d existing record(s) before staging.\n", count($existing)), Console::FG_YELLOW);
+            }
+        }
         $rows = $this->buildRows();
         foreach ($rows as $row) {
             $effectiveDate = $row['effectiveDate'];
@@ -108,7 +124,13 @@ class SchedulerController extends Controller
                 print_r($record->getErrors());
                 continue;
             }
-            $this->stdout("Staged {$row['sku']} | {$row['title']}: {$row['oldPrice']} -> {$row['newPrice']}\n");
+            $promoStr = '';
+            if ($row['oldPromotionalPrice'] !== null || $row['newPromotionalPrice'] !== null) {
+                $old = $row['oldPromotionalPrice'] !== null ? number_format($row['oldPromotionalPrice'], 2) : 'null';
+                $new = $row['newPromotionalPrice'] !== null ? number_format($row['newPromotionalPrice'], 2) : 'null';
+                $promoStr = sprintf(' | promo: %s -> %s', $old, $new);
+            }
+            $this->stdout("Staged {$row['sku']} | {$row['title']}: {$row['oldPrice']} -> {$row['newPrice']}{$promoStr}\n");
         }
         return ExitCode::OK;
     }
@@ -299,7 +321,44 @@ class SchedulerController extends Controller
             $this->stderr("Rule file is empty or invalid JSON: $path\n", Console::FG_RED);
             exit(ExitCode::UNSPECIFIED_ERROR);
         }
+        $this->resolveSlugReferences($rules);
         return $rules;
+    }
+
+    /**
+     * Resolve criteria values in the format "<section>:<slug1>,<slug2>" to arrays of element IDs.
+     *
+     * Example JSON:
+     *   "productCategory": "productCategory:mini-dresses,evening-dresses"
+     * becomes:
+     *   "productCategory": [4820, 5140]
+     */
+    private function resolveSlugReferences(array &$rules): void
+    {
+        foreach ($rules as &$rule) {
+            foreach (['criteria', 'variantCriteria'] as $key) {
+                if (empty($rule[$key]) || !is_array($rule[$key])) {
+                    continue;
+                }
+                foreach ($rule[$key] as $field => &$value) {
+                    if (!is_string($value) || !str_contains($value, ':')) {
+                        continue;
+                    }
+                    [$section, $slugList] = explode(':', $value, 2);
+                    $slugs = array_filter(array_map('trim', explode(',', $slugList)));
+                    if (empty($slugs)) {
+                        continue;
+                    }
+                    $ids = Entry::find()->section($section)->slug($slugs)->ids();
+                    if (empty($ids)) {
+                        $this->stdout("Warning: no entries found for {$field} = \"{$value}\"\n", Console::FG_YELLOW);
+                        continue;
+                    }
+                    $this->stdout("Resolved {$field} \"{$value}\" → [" . implode(', ', $ids) . "]\n");
+                    $value = $ids;
+                }
+            }
+        }
     }
 
     private function buildRows(): array
