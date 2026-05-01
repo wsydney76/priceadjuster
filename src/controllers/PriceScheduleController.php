@@ -54,6 +54,27 @@ class PriceScheduleController extends Controller
         );
     }
 
+    /**
+     * Delete all records for a given rule name.
+     *
+     * Expects POST body: rule = <ruleName>
+     */
+    public function actionDeleteByRule(): Response
+    {
+        $this->requireCpRequest();
+        $this->requirePostRequest();
+
+        $rule   = Craft::$app->getRequest()->getRequiredBodyParam('rule');
+        $result = PriceadjusterPlugin::getInstance()->scheduler->deleteRecordsByRule($rule);
+
+        return $this->buildResponse(
+            saved: $result['deleted'],
+            errors: $result['errors'],
+            zeroMessage: 'No records found for this rule.',
+            successMessage: Craft::t('site', '{n,plural,=1{1 record deleted}other{# records deleted}}.', ['n' => $result['deleted']]),
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

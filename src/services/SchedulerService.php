@@ -393,6 +393,28 @@ class SchedulerService extends Component
     }
 
     /**
+     * Delete all price-schedule records for a given rule name.
+     *
+     * @return array{deleted: int, errors: string[]}
+     */
+    public function deleteRecordsByRule(string $rule): array
+    {
+        $deleted = 0;
+        $errors  = [];
+
+        $records = PriceSchedule::find()->where(['ruleName' => $rule])->all();
+        foreach ($records as $record) {
+            if ($record->delete()) {
+                $deleted++;
+            } else {
+                $errors[] = "Failed deleting record #{$record->id}.";
+            }
+        }
+
+        return ['deleted' => $deleted, 'errors' => $errors];
+    }
+
+    /**
      * Delete price-schedule records.
      *
      * @param  PriceSchedule[] $records

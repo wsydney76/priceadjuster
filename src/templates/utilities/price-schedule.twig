@@ -11,6 +11,7 @@
                     <th class="thin" style="text-align:right;">Total</th>
                     <th class="thin" style="text-align:right;">Pending</th>
                     <th class="thin" style="text-align:right;">Applied</th>
+                    <th class="thin"></th>
                 </tr>
             </thead>
             <tbody>
@@ -35,10 +36,54 @@
                         <td class="thin" style="text-align:right;">{{ row.total }}</td>
                         <td class="thin" style="text-align:right;">{{ row.pending }}</td>
                         <td class="thin" style="text-align:right;">{{ row.applied }}</td>
+                        <td class="thin" style="text-align:right;">
+                            <button type="button"
+                                    class="btn small ps-delete-rule-btn"
+                                    data-rule="{{ row.ruleName }}"
+                                    data-total="{{ row.total }}"
+                                    style="color:var(--red-600);">
+                                Delete all
+                            </button>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
+        <script>
+        (function () {
+            var deleteByRuleUrl = '{{ actionUrl('_priceadjuster/price-schedule/delete-by-rule') }}';
+            document.querySelectorAll('.ps-delete-rule-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var rule  = btn.dataset.rule;
+                    var total = btn.dataset.total;
+                    if (!confirm('Delete all ' + total + ' record(s) for rule "' + rule + '"? This cannot be undone.')) {
+                        return;
+                    }
+                    btn.classList.add('loading');
+                    btn.disabled = true;
+                    var body = new FormData();
+                    body.append(Craft.csrfTokenName, Craft.csrfTokenValue);
+                    body.append('rule', rule);
+                    fetch(deleteByRuleUrl, {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': Craft.csrfTokenValue },
+                        body: body,
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (json) {
+                        if (json.success) {
+                            Craft.cp.displayNotice(json.message || 'Deleted.');
+                            btn.closest('tr').remove();
+                        } else {
+                            Craft.cp.displayError(json.message || 'Delete failed.');
+                        }
+                    })
+                    .catch(function () { Craft.cp.displayError('Delete failed.'); })
+                    .finally(function () { btn.classList.remove('loading'); btn.disabled = false; });
+                });
+            });
+        })();
+        </script>
     {% endif %}
 {% else %}
     {# ── Filtered by rule ── #}
