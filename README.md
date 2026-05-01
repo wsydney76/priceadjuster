@@ -23,7 +23,7 @@ Update `composer.json` file in your project root so that it includes the followi
   "repositories": [
     {
       "type": "vcs",
-      "url": "https://github.com/wsydney76/craft-priceadjuster"
+      "url": "https://github.com/wsydney76/priceadjuster"
     }
   ]
 }
