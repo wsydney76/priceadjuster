@@ -1,5 +1,7 @@
 <?php
+
 namespace wsydney76\priceadjuster\console\controllers;
+
 use Craft;
 use craft\commerce\elements\Product;
 use craft\commerce\elements\Variant;
@@ -9,6 +11,7 @@ use wsydney76\priceadjuster\records\PriceSchedule;
 use wsydney76\priceadjuster\PriceadjusterPlugin;
 use yii\console\Controller;
 use yii\console\ExitCode;
+
 class SchedulerController extends Controller
 {
     public const EVENT_BUILD_ROWS = 'buildRows';
@@ -17,6 +20,7 @@ class SchedulerController extends Controller
     public ?string $rule = null;
     public ?string $date = null;
     public bool $resetPromotion = false;
+
     public function options($actionID): array
     {
         return array_merge(parent::options($actionID), [
@@ -25,6 +29,7 @@ class SchedulerController extends Controller
             'resetPromotion',
         ]);
     }
+
     /**
      * Preview price changes defined in a rule file.
      *
@@ -54,6 +59,7 @@ class SchedulerController extends Controller
         $this->stdout("\nTotal variants: " . count($rows) . "\n", Console::FG_GREEN);
         return ExitCode::OK;
     }
+
     /**
      * Stage future prices in price_schedule.
      */
@@ -77,25 +83,25 @@ class SchedulerController extends Controller
                     $this->stdout("Skipped (unchanged): {$row['sku']} | {$row['title']}\n", Console::FG_YELLOW);
                     continue;
                 }
-                $record->title               = $row['title'];
-                $record->oldPrice            = $row['oldPrice'];
-                $record->newPrice            = $row['newPrice'];
+                $record->title = $row['title'];
+                $record->oldPrice = $row['oldPrice'];
+                $record->newPrice = $row['newPrice'];
                 $record->oldPromotionalPrice = $row['oldPromotionalPrice'];
                 $record->newPromotionalPrice = $row['newPromotionalPrice'];
-                $record->ruleLabel           = $row['ruleLabel'];
-                $record->ruleName            = $this->rule;
+                $record->ruleLabel = $row['ruleLabel'];
+                $record->ruleName = $this->rule;
             } else {
                 $record = new PriceSchedule();
-                $record->variantId           = $row['variantId'];
-                $record->title               = $row['title'];
-                $record->sku                 = $row['sku'];
-                $record->oldPrice            = $row['oldPrice'];
-                $record->newPrice            = $row['newPrice'];
+                $record->variantId = $row['variantId'];
+                $record->title = $row['title'];
+                $record->sku = $row['sku'];
+                $record->oldPrice = $row['oldPrice'];
+                $record->newPrice = $row['newPrice'];
                 $record->oldPromotionalPrice = $row['oldPromotionalPrice'];
                 $record->newPromotionalPrice = $row['newPromotionalPrice'];
-                $record->ruleLabel           = $row['ruleLabel'];
-                $record->ruleName            = $this->rule;
-                $record->effectiveDate       = $effectiveDate;
+                $record->ruleLabel = $row['ruleLabel'];
+                $record->ruleName = $this->rule;
+                $record->effectiveDate = $effectiveDate;
             }
             if (!$record->save()) {
                 $this->stderr("Failed staging variant {$row['variantId']}\n", Console::FG_RED);
@@ -106,6 +112,7 @@ class SchedulerController extends Controller
         }
         return ExitCode::OK;
     }
+
     /**
      * Apply staged prices.
      *
@@ -114,18 +121,10 @@ class SchedulerController extends Controller
      */
     public function actionApply(): int
     {
-        if (!$this->date && !$this->rule) {
-            $this->stderr("Either --date or --rule is required.\n", Console::FG_RED);
+        $records = $this->getScheduleRecords(applied: false);
+        if ($records === null) {
             return ExitCode::USAGE;
         }
-        $query = PriceSchedule::find()->where(['appliedAt' => null]);
-        if ($this->date) {
-            $query->andWhere(['effectiveDate' => $this->date]);
-        }
-        if ($this->rule) {
-            $query->andWhere(['ruleName' => $this->rule]);
-        }
-        $records = $query->all();
         $productIds = [];
         foreach ($records as $record) {
             $variant = Variant::find()->id((int)$record->variantId)->status(null)->one();
@@ -167,23 +166,16 @@ class SchedulerController extends Controller
         }
         return ExitCode::OK;
     }
+
     /**
      * Roll back applied prices for a date.
      */
     public function actionRollback(): int
     {
-        if (!$this->date && !$this->rule) {
-            $this->stderr("Either --date or --rule is required.\n", Console::FG_RED);
+        $records = $this->getScheduleRecords(applied: true);
+        if ($records === null) {
             return ExitCode::USAGE;
         }
-        $query = PriceSchedule::find()->andWhere(['not', ['appliedAt' => null]]);
-        if ($this->date) {
-            $query->andWhere(['effectiveDate' => $this->date]);
-        }
-        if ($this->rule) {
-            $query->andWhere(['ruleName' => $this->rule]);
-        }
-        $records = $query->all();
         $productIds = [];
         foreach ($records as $record) {
             $variant = Variant::find()->id((int)$record->variantId)->status(null)->one();
@@ -224,22 +216,24 @@ class SchedulerController extends Controller
         }
         return ExitCode::OK;
     }
+
     /**
-     * Delete all staged price records for a given date.
+     * Delete price schedule records for a given date/rule, or ALL records when no filter is provided.
      *
      * Usage:
      * php craft _priceadjuster/scheduler/delete --date=2027-01-01
+     * php craft _priceadjuster/scheduler/delete --rule=2027-01-01
+     * php craft _priceadjuster/scheduler/delete   # deletes everything
      */
     public function actionDelete(): int
     {
-        $query = PriceSchedule::find();
-        if ($this->date) {
-            $query->where(['effectiveDate' => $this->date]);
-            $scope = "date {$this->date}";
-        } else {
-            $scope = "ALL dates";
-        }
-        $records = $query->all();
+        $records = $this->getScheduleRecords(applied: null, requireFilter: false);
+        $scope = match (true) {
+            (bool)$this->date && (bool)$this->rule => "date {$this->date} + rule {$this->rule}",
+            (bool)$this->date => "date {$this->date}",
+            (bool)$this->rule => "rule {$this->rule}",
+            default => 'ALL records',
+        };
         if (empty($records)) {
             $this->stdout("No records found for $scope.\n", Console::FG_YELLOW);
             return ExitCode::OK;
@@ -260,6 +254,35 @@ class SchedulerController extends Controller
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Retrieve schedule records filtered by applied status and optional date/rule.
+     *
+     * @param  bool|null $applied  true = only applied; false = only staged; null = both
+     * @param  bool      $requireFilter  when true, returns null (+ emits error) if neither --date nor --rule is set
+     * @return PriceSchedule[]|null  null only when $requireFilter is true and no filter was provided
+     */
+    private function getScheduleRecords(?bool $applied, bool $requireFilter = true): ?array
+    {
+        if ($requireFilter && !$this->date && !$this->rule) {
+            $this->stderr("Either --date or --rule is required.\n", Console::FG_RED);
+            return null;
+        }
+        $query = PriceSchedule::find();
+        if ($applied === true) {
+            $query->andWhere(['not', ['appliedAt' => null]]);
+        } elseif ($applied === false) {
+            $query->andWhere(['appliedAt' => null]);
+        }
+        if ($this->date) {
+            $query->andWhere(['effectiveDate' => $this->date]);
+        }
+        if ($this->rule) {
+            $query->andWhere(['ruleName' => $this->rule]);
+        }
+        return $query->all();
+    }
+
     private function loadRules(): array
     {
         if (!$this->rule) {
@@ -278,9 +301,10 @@ class SchedulerController extends Controller
         }
         return $rules;
     }
+
     private function buildRows(): array
     {
-        $rules  = $this->loadRules();
+        $rules = $this->loadRules();
         $rowMap = [];
         foreach ($rules as $index => $rule) {
             $effectiveDate = $rule['effective_date'] ?? null;
@@ -288,11 +312,11 @@ class SchedulerController extends Controller
                 $this->stdout("Rule #$index is missing 'effective_date' – skipping.\n", Console::FG_YELLOW);
                 continue;
             }
-            $criteria               = $rule['criteria'] ?? [];
-            $variantCriteria        = $rule['variantCriteria'] ?? [];
-            $adjustment             = $rule['priceAdjustment'] ?? [];
-            $promotionalAdjustment  = $rule['promotionalPriceAdjustment'] ?? null;
-            $ruleLabel  = $this->buildRuleLabel($rule, $index);
+            $criteria = $rule['criteria'] ?? [];
+            $variantCriteria = $rule['variantCriteria'] ?? [];
+            $adjustment = $rule['priceAdjustment'] ?? [];
+            $promotionalAdjustment = $rule['promotionalPriceAdjustment'] ?? null;
+            $ruleLabel = $this->buildRuleLabel($rule, $index);
             $variants = $this->getVariantsForCriteria($criteria, $variantCriteria);
             if (empty($variants)) {
                 $this->stdout("Rule #$index ($ruleLabel): no variants found – skipping.\n", Console::FG_YELLOW);
@@ -307,7 +331,7 @@ class SchedulerController extends Controller
                     $this->stdout("Skipped (price would be 0): {$variant->sku}\n", Console::FG_YELLOW);
                     continue;
                 }
-                $currentPromoPrice   = $variant->basePromotionalPrice !== null ? (float)$variant->basePromotionalPrice : null;
+                $currentPromoPrice = $variant->basePromotionalPrice !== null ? (float)$variant->basePromotionalPrice : null;
                 $oldPromotionalPrice = $this->zeroAsNull($currentPromoPrice);
                 if ($promotionalAdjustment !== null) {
                     $newPromotionalPrice = $this->zeroAsNull($this->applyAdjustment($newPrice, $promotionalAdjustment));
@@ -316,15 +340,15 @@ class SchedulerController extends Controller
                 }
                 $key = $variant->id . ':' . $effectiveDate;
                 $rowMap[$key] = [
-                    'variantId'           => $variant->id,
-                    'title'               => $variant->owner->title . ' - ' . $variant->title,
-                    'sku'                 => $variant->sku,
-                    'oldPrice'            => $oldPrice,
-                    'newPrice'            => $newPrice,
+                    'variantId' => $variant->id,
+                    'title' => $variant->owner->title . ' - ' . $variant->title,
+                    'sku' => $variant->sku,
+                    'oldPrice' => $oldPrice,
+                    'newPrice' => $newPrice,
                     'oldPromotionalPrice' => $oldPromotionalPrice,
                     'newPromotionalPrice' => $newPromotionalPrice,
-                    'effectiveDate'       => $effectiveDate,
-                    'ruleLabel'           => $ruleLabel,
+                    'effectiveDate' => $effectiveDate,
+                    'ruleLabel' => $ruleLabel,
                 ];
             }
         }
@@ -344,6 +368,7 @@ class SchedulerController extends Controller
 
         return $event->rows;
     }
+
     private function getVariantsForCriteria(array $criteria, array $variantCriteria = []): array
     {
         $query = Product::find()->status(null);
@@ -360,9 +385,13 @@ class SchedulerController extends Controller
         }
         return $variantQuery->all();
     }
-    private function applyAdjustment(float $price, array $adjustment): float
+
+    private function applyAdjustment(float $price, array $adjustment): ?float
     {
-        $type  = $adjustment['type'] ?? '';
+        $type = $adjustment['type'] ?? '';
+        if ($type === 'reset') {
+            return null;
+        }
         $value = (float)($adjustment['value'] ?? 0);
         if ($type === 'percentage') {
             return $this->friendlyPrice($price * (1 + $value / 100));
@@ -372,14 +401,17 @@ class SchedulerController extends Controller
         }
         return $price;
     }
+
     private function friendlyPrice(float $price): float
     {
         return round(floor($price) + 0.95, 2);
     }
+
     private function zeroAsNull(?float $value): ?float
     {
         return ($value === null || $value === 0.0) ? null : $value;
     }
+
     private function resaveProducts(array $productIds): void
     {
         if (empty($productIds)) {
@@ -395,22 +427,23 @@ class SchedulerController extends Controller
             }
         }
     }
+
     private function buildRuleLabel(array $rule, int $index): string
     {
         $effectiveDate = $rule['effective_date'] ?? '?';
-        $adjustment    = $rule['priceAdjustment'] ?? [];
-        $type          = $adjustment['type'] ?? '';
-        $value         = $adjustment['value'] ?? 0;
-        $criteria      = $rule['criteria'] ?? [];
+        $adjustment = $rule['priceAdjustment'] ?? [];
+        $type = $adjustment['type'] ?? '';
+        $value = $adjustment['value'] ?? 0;
+        $criteria = $rule['criteria'] ?? [];
         $criteriaStr = implode(', ', array_map(
             fn($k, $v) => "$k:" . (is_array($v) ? implode('+', $v) : $v),
             array_keys($criteria),
             $criteria
         ));
-        $adjustStr = match($type) {
+        $adjustStr = match ($type) {
             'percentage' => "+{$value}%",
-            'amount'     => "+{$value}",
-            default      => $type,
+            'amount' => "+{$value}",
+            default => $type,
         };
         return sprintf('%s #%d [%s] %s eff. %s', $this->rule, $index + 1, $criteriaStr, $adjustStr, $effectiveDate);
     }
