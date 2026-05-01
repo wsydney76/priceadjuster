@@ -336,6 +336,7 @@ class SchedulerController extends Controller
         }
 
         $event = new BuildRowsEvent([
+            'ruleName' => $this->rule,
             'rules' => $rules,
             'rows' => $rows,
         ]);
