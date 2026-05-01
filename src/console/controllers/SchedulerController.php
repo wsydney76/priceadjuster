@@ -43,12 +43,7 @@ class SchedulerController extends Controller
     {
         $rows = $this->buildRows();
         foreach ($rows as $row) {
-            $promoStr = '';
-            if ($row['oldPromotionalPrice'] !== null || $row['newPromotionalPrice'] !== null) {
-                $old = $row['oldPromotionalPrice'] !== null ? number_format($row['oldPromotionalPrice'], 2) : 'null';
-                $new = $row['newPromotionalPrice'] !== null ? number_format($row['newPromotionalPrice'], 2) : 'null';
-                $promoStr = sprintf(' | promo: %s -> %s', $old, $new);
-            }
+            $promoStr = $this->getPromoStringFromRow($row);
             $this->stdout(sprintf(
                 "%s | %s | %s | %.2f -> %.2f%s\n",
                 $row['effectiveDate'],
@@ -124,12 +119,7 @@ class SchedulerController extends Controller
                 print_r($record->getErrors());
                 continue;
             }
-            $promoStr = '';
-            if ($row['oldPromotionalPrice'] !== null || $row['newPromotionalPrice'] !== null) {
-                $old = $row['oldPromotionalPrice'] !== null ? number_format($row['oldPromotionalPrice'], 2) : 'null';
-                $new = $row['newPromotionalPrice'] !== null ? number_format($row['newPromotionalPrice'], 2) : 'null';
-                $promoStr = sprintf(' | promo: %s -> %s', $old, $new);
-            }
+            $promoStr = $this->getPromoStringFromRow($row);
             $this->stdout("Staged {$row['sku']} | {$row['title']}: {$row['oldPrice']} -> {$row['newPrice']}{$promoStr}\n");
         }
         return ExitCode::OK;
@@ -174,12 +164,7 @@ class SchedulerController extends Controller
                 print_r($record->getErrors());
                 continue;
             }
-            $promoStr = '';
-            if ($record->oldPromotionalPrice !== null || $record->newPromotionalPrice !== null) {
-                $old = $record->oldPromotionalPrice !== null ? number_format((float)$record->oldPromotionalPrice, 2) : 'null';
-                $new = $record->newPromotionalPrice !== null ? number_format((float)$record->newPromotionalPrice, 2) : 'null';
-                $promoStr = sprintf(' | promo: %s -> %s', $old, $new);
-            }
+            $promoStr = $this->getPromoStringFromRecord($record);
             $this->stdout(sprintf("Applied %s: %.2f -> %.2f%s\n", $record->sku, (float)$record->oldPrice, (float)$record->newPrice, $promoStr), Console::FG_GREEN);
             $productIds[$variant->ownerId] = true;
         }
@@ -224,12 +209,7 @@ class SchedulerController extends Controller
                 print_r($record->getErrors());
                 continue;
             }
-            $promoStr = '';
-            if ($record->oldPromotionalPrice !== null || $record->newPromotionalPrice !== null) {
-                $old = $record->oldPromotionalPrice !== null ? number_format((float)$record->oldPromotionalPrice, 2) : 'null';
-                $new = $record->newPromotionalPrice !== null ? number_format((float)$record->newPromotionalPrice, 2) : 'null';
-                $promoStr = sprintf(' | promo: %s -> %s', $new, $old);
-            }
+            $promoStr = $this->getPromoStringFromRecord($record);
             $this->stdout(sprintf("Rolled back %s: %.2f -> %.2f%s\n", $record->sku, (float)$record->newPrice, (float)$record->oldPrice, $promoStr), Console::FG_GREEN);
             $productIds[$variant->ownerId] = true;
         }
@@ -505,5 +485,35 @@ class SchedulerController extends Controller
             default => $type,
         };
         return sprintf('%s #%d [%s] %s eff. %s', $this->rule, $index + 1, $criteriaStr, $adjustStr, $effectiveDate);
+    }
+
+    /**
+     * @param mixed $row
+     * @return string
+     */
+    protected function getPromoStringFromRow(mixed $row): string
+    {
+        $promoStr = '';
+        if ($row['oldPromotionalPrice'] !== null || $row['newPromotionalPrice'] !== null) {
+            $old = $row['oldPromotionalPrice'] !== null ? number_format($row['oldPromotionalPrice'], 2) : 'null';
+            $new = $row['newPromotionalPrice'] !== null ? number_format($row['newPromotionalPrice'], 2) : 'null';
+            $promoStr = sprintf(' | promo: %s -> %s', $old, $new);
+        }
+        return $promoStr;
+    }
+
+    /**
+     * @param mixed $record
+     * @return string
+     */
+    protected function getPromoStringFromRecord(mixed $record): string
+    {
+        $promoStr = '';
+        if ($record->oldPromotionalPrice !== null || $record->newPromotionalPrice !== null) {
+            $old = $record->oldPromotionalPrice !== null ? number_format((float)$record->oldPromotionalPrice, 2) : 'null';
+            $new = $record->newPromotionalPrice !== null ? number_format((float)$record->newPromotionalPrice, 2) : 'null';
+            $promoStr = sprintf(' | promo: %s -> %s', $old, $new);
+        }
+        return $promoStr;
     }
 }
