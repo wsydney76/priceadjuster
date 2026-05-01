@@ -51,7 +51,6 @@
         </table>
         <script>
         (function () {
-            var deleteByRuleUrl = '{{ actionUrl('_priceadjuster/price-schedule/delete-by-rule') }}';
             document.querySelectorAll('.ps-delete-rule-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var rule  = btn.dataset.rule;
@@ -61,25 +60,16 @@
                     }
                     btn.classList.add('loading');
                     btn.disabled = true;
-                    var body = new FormData();
-                    body.append(Craft.csrfTokenName, Craft.csrfTokenValue);
-                    body.append('rule', rule);
-                    fetch(deleteByRuleUrl, {
-                        method: 'POST',
-                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': Craft.csrfTokenValue },
-                        body: body,
-                    })
-                    .then(function (r) { return r.json(); })
-                    .then(function (json) {
-                        if (json.success) {
-                            Craft.cp.displayNotice(json.message || 'Deleted.');
-                            btn.closest('tr').remove();
-                        } else {
-                            Craft.cp.displayError(json.message || 'Delete failed.');
-                        }
-                    })
-                    .catch(function () { Craft.cp.displayError('Delete failed.'); })
-                    .finally(function () { btn.classList.remove('loading'); btn.disabled = false; });
+                    Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/delete-by-rule', {
+                        data: { rule: rule }
+                    }).then(function (response) {
+                        Craft.cp.displayNotice(response.data.message || 'Deleted.');
+                        window.location.reload();
+                    }).catch(function (e) {
+                        Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Delete failed.');
+                        btn.classList.remove('loading');
+                        btn.disabled = false;
+                    });
                 });
             });
         })();
@@ -239,9 +229,6 @@
         {% endfor %}
         <script>
         (function () {
-            var saveUrl   = '{{ actionUrl('_priceadjuster/price-schedule/batch-update') }}';
-            var deleteUrl = '{{ actionUrl('_priceadjuster/price-schedule/delete-selected') }}';
-
             // Select-all toggle
             document.querySelectorAll('.ps-select-all').forEach(function (toggle) {
                 toggle.addEventListener('change', function () {
@@ -252,24 +239,6 @@
                 });
             });
 
-            function postJson(url, body, onSuccess, onError, onFinally) {
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-Token': Craft.csrfTokenValue,
-                    },
-                    body: body,
-                })
-                .then(function (r) { return r.json(); })
-                .then(function (json) {
-                    if (json.success) { onSuccess(json); } else { onError(json); }
-                })
-                .catch(function () { onError(null); })
-                .finally(onFinally);
-            }
-
             // Save form
             document.querySelectorAll('.price-schedule-form').forEach(function (form) {
                 form.addEventListener('submit', function (e) {
@@ -277,41 +246,28 @@
                     var btn = form.querySelector('button[type=submit]');
                     btn.classList.add('loading');
                     btn.disabled = true;
-                    postJson(
-                        saveUrl,
-                        new FormData(form),
-                        function (json) { Craft.cp.displayNotice(json.message || 'Saved.'); },
-                        function (json) { Craft.cp.displayError((json && json.message) || 'An error occurred.'); },
-                        function () { btn.classList.remove('loading'); btn.disabled = false; }
-                    );
+                    Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/batch-update', { data: new FormData(form) })
+                        .then(function (r) { Craft.cp.displayNotice(r.data.message || 'Saved.'); })
+                        .catch(function (e) { Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'An error occurred.'); })
+                        .finally(function () { btn.classList.remove('loading'); btn.disabled = false; });
                 });
 
                 // Delete selected
                 form.querySelector('.ps-delete-btn').addEventListener('click', function () {
                     var checked = Array.from(form.querySelectorAll('.ps-delete-cb:checked'));
-                    if (!checked.length) {
-                        Craft.cp.displayError('No rows selected.');
-                        return;
-                    }
-                    if (!confirm('Delete ' + checked.length + ' record(s)? This cannot be undone.')) {
-                        return;
-                    }
+                    if (!checked.length) { Craft.cp.displayError('No rows selected.'); return; }
+                    if (!confirm('Delete ' + checked.length + ' record(s)? This cannot be undone.')) { return; }
                     var deleteBtn = this;
                     deleteBtn.classList.add('loading');
                     deleteBtn.disabled = true;
-                    var body = new FormData();
-                    body.append(Craft.csrfTokenName, Craft.csrfTokenValue);
-                    checked.forEach(function (cb) { body.append('ids[]', cb.value); });
-                    postJson(
-                        deleteUrl,
-                        body,
-                        function (json) {
-                            Craft.cp.displayNotice(json.message || 'Deleted.');
-                            // window.location.reload();
-                        },
-                        function (json) { Craft.cp.displayError((json && json.message) || 'Delete failed.'); },
-                        function () { deleteBtn.classList.remove('loading'); deleteBtn.disabled = false; }
-                    );
+                    var ids = checked.map(function (cb) { return cb.value; });
+                    Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/delete-selected', { data: { ids: ids } })
+                        .then(function (r) {
+                            Craft.cp.displayNotice(r.data.message || 'Deleted.');
+                            window.location.reload();
+                        })
+                        .catch(function (e) { Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Delete failed.'); })
+                        .finally(function () { deleteBtn.classList.remove('loading'); deleteBtn.disabled = false; });
                 });
             });
         })();
