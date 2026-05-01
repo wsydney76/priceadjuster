@@ -560,6 +560,7 @@ class SchedulerService extends Component
         foreach ($criteria as $key => $value) {
             $query->$key($value);
         }
+
         $productIds = $query->ids();
         if (empty($productIds)) {
             return [];
