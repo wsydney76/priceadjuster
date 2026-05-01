@@ -454,6 +454,34 @@ class SchedulerService extends Component
         if (!is_array($rules) || empty($rules)) {
             throw new \RuntimeException("Rule file is empty or invalid JSON: $path");
         }
+        $today = new \DateTimeImmutable('today');
+        foreach ($rules as $index => $ruleEntry) {
+            $effectiveDate = $ruleEntry['effective_date'] ?? null;
+            $ruleNum = $index + 1;
+
+            if (!$effectiveDate || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $effectiveDate)) {
+                throw new \RuntimeException(sprintf(
+                    "Rule #%d in '%s' has an invalid or missing effective_date '%s'. Expected format: yyyy-mm-dd.",
+                    $ruleNum, $rule, $effectiveDate ?? ''
+                ));
+            }
+
+            $date = \DateTimeImmutable::createFromFormat('Y-m-d', $effectiveDate);
+            if (!$date || $date->format('Y-m-d') !== $effectiveDate) {
+                throw new \RuntimeException(sprintf(
+                    "Rule #%d in '%s' has an invalid calendar date: '%s'.",
+                    $ruleNum, $rule, $effectiveDate
+                ));
+            }
+
+            if ($date < $today) {
+                throw new \RuntimeException(sprintf(
+                    "Rule #%d in '%s' has an effective_date in the past: '%s'.",
+                    $ruleNum, $rule, $effectiveDate
+                ));
+            }
+        }
+
         $this->resolveSlugReferences($rules);
         return $rules;
     }
