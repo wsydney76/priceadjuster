@@ -133,7 +133,7 @@ class SchedulerController extends Controller
             };
         });
 
-        $service->applyRecords($records, $this->resetPromotion);
+        $service->applyRecords($records, $this->resetPromotion, $this->rule);
         $service->off(SchedulerService::EVENT_RESULT, $handler);
 
         return ExitCode::OK;
@@ -161,7 +161,7 @@ class SchedulerController extends Controller
             };
         });
 
-        $service->rollbackRecords($records);
+        $service->rollbackRecords($records, $this->rule);
         $service->off(SchedulerService::EVENT_RESULT, $handler);
 
         return ExitCode::OK;

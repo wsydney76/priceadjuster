@@ -29,6 +29,16 @@
     suggestAliases: true,
     errors: settings.getErrors('importDirectory'),
 }) }}
+{{ forms.autosuggestField({
+    label: 'Log Directory' | t('_priceadjuster'),
+    instructions: 'Directory where log files are written. Supports Craft aliases and environment variables.' | t('_priceadjuster'),
+    id: 'logDirectory',
+    name: 'logDirectory',
+    value: settings.logDirectory,
+    suggestEnvVars: true,
+    suggestAliases: true,
+    errors: settings.getErrors('logDirectory'),
+}) }}
 {{ forms.lightswitchField({
     label: 'Re-save Products After Apply / Rollback' | t('_priceadjuster'),
     instructions: 'Re-saves all affected products after prices are applied or rolled back, refreshing caches and triggering afterSave events (e.g. SetColorPriceJob). Disable for large batches where re-saves are not needed.' | t('_priceadjuster'),

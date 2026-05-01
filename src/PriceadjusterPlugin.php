@@ -55,6 +55,10 @@ class PriceadjusterPlugin extends Plugin
     {
         return Craft::getAlias(App::parseEnv($this->getSettings()->importDirectory));
     }
+    public function getLogDirectory(): string
+    {
+        return Craft::getAlias(App::parseEnv($this->getSettings()->logDirectory));
+    }
     // -------------------------------------------------------------------------
     // Settings
     // -------------------------------------------------------------------------

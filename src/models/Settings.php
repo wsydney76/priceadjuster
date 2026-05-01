@@ -23,6 +23,12 @@ class Settings extends Model
      */
     public string $importDirectory = '@root/config/priceadjuster/imports';
     /**
+     * Directory where log files are written.
+     * Supports environment variables.
+     * Default: @root/config/priceadjuster/logs
+     */
+    public string $logDirectory = '@root/config/priceadjuster/logs';
+    /**
      * Whether to re-save affected products after applying or rolling back prices.
      * Re-saving refreshes caches and triggers afterSave events (e.g. SetColorPriceJob).
      * Disable for large batches where product re-saves are not required.
@@ -33,14 +39,14 @@ class Settings extends Model
         return [
             'parser' => [
                 'class' => EnvAttributeParserBehavior::class,
-                'attributes' => ['rulesDirectory', 'exportDirectory', 'importDirectory'],
+                'attributes' => ['rulesDirectory', 'exportDirectory', 'importDirectory', 'logDirectory'],
             ],
         ];
     }
     public function rules(): array
     {
         return [
-            [['rulesDirectory', 'exportDirectory', 'importDirectory'], 'required'],
+            [['rulesDirectory', 'exportDirectory', 'importDirectory', 'logDirectory'], 'required'],
         ];
     }
 }

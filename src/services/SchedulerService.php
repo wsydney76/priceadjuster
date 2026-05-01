@@ -196,9 +196,10 @@ class SchedulerService extends Component
      *
      * @param  PriceSchedule[] $records
      * @param  bool            $resetPromotion  Force promotional price to null on apply
+     * @param  string|null     $ruleName        Used for the log file name
      * @return array[]  Each item: status (applied|skipped|error), record, message
      */
-    public function applyRecords(array $records, bool $resetPromotion = false): array
+    public function applyRecords(array $records, bool $resetPromotion = false, ?string $ruleName = null): array
     {
         $this->currentResults = [];
         $productIds = [];
@@ -238,13 +239,15 @@ class SchedulerService extends Component
                 continue;
             }
 
-            $this->addResult(['status' => 'applied', 'record' => $record, 'message' => sprintf("Applied %s: %.2f -> %.2f", $record->sku, (float)$record->oldPrice, $newPrice)]);
+            $this->addResult(['status' => 'applied', 'record' => $record, 'message' => sprintf("Applied %s: %.2f -> %.2f", $record->sku, (float)$record->oldPrice, $newPrice) . $this->promoSuffixFromRecord($record)]);
             $productIds[$variant->ownerId] = true;
         }
 
         if (PriceadjusterPlugin::getInstance()->getSettings()->resaveProducts) {
             $this->resaveProducts(array_keys($productIds));
         }
+
+        $this->writeLog($ruleName ?? 'unknown', 'apply', $this->currentResults);
 
         return $this->currentResults;
     }
@@ -253,9 +256,10 @@ class SchedulerService extends Component
      * Roll back applied price-schedule records.
      *
      * @param  PriceSchedule[] $records
+     * @param  string|null     $ruleName  Used for the log file name
      * @return array[]  Each item: status (rolledBack|skipped|error), record, message
      */
-    public function rollbackRecords(array $records): array
+    public function rollbackRecords(array $records, ?string $ruleName = null): array
     {
         $this->currentResults = [];
         $productIds = [];
@@ -294,13 +298,15 @@ class SchedulerService extends Component
                 continue;
             }
 
-            $this->addResult(['status' => 'rolledBack', 'record' => $record, 'message' => sprintf("Rolled back %s: %.2f -> %.2f", $record->sku, (float)$record->newPrice, $oldPrice)]);
+            $this->addResult(['status' => 'rolledBack', 'record' => $record, 'message' => sprintf("Rolled back %s: %.2f -> %.2f", $record->sku, (float)$record->newPrice, $oldPrice) . $this->promoSuffixFromRecord($record)]);
             $productIds[$variant->ownerId] = true;
         }
 
         if (PriceadjusterPlugin::getInstance()->getSettings()->resaveProducts) {
             $this->resaveProducts(array_keys($productIds));
         }
+
+        $this->writeLog($ruleName ?? 'unknown', 'rollback', $this->currentResults);
 
         return $this->currentResults;
     }
@@ -614,6 +620,49 @@ class SchedulerService extends Component
             $event->message = $result['message'] ?? '';
             $event->result  = $result;
             $this->trigger(self::EVENT_RESULT, $event);
+        }
+    }
+
+    private function promoSuffixFromRecord(PriceSchedule $record): string
+    {
+        if ($record->oldPromotionalPrice === null && $record->newPromotionalPrice === null) {
+            return '';
+        }
+        $old = $record->oldPromotionalPrice !== null ? number_format((float)$record->oldPromotionalPrice, 2) : 'null';
+        $new = $record->newPromotionalPrice !== null ? number_format((float)$record->newPromotionalPrice, 2) : 'null';
+        return sprintf(' | promo: %s -> %s', $old, $new);
+    }
+
+    /**
+     * Write all result messages to a log file.
+     *
+     * File: <logDirectory>/<ruleName>-<action>-<yyyy-mm-dd hh-mm>.log
+     */
+    private function writeLog(string $ruleName, string $action, array $results): void
+    {
+        try {
+            $dir = PriceadjusterPlugin::getInstance()->getLogDirectory();
+            if (!is_dir($dir)) {
+                mkdir($dir, 0775, true);
+            }
+            $timestamp = (new \DateTimeImmutable())->format('Y-m-d-H-i');
+            $filename  = $dir . '/' . $ruleName . '-' . $action . '-' . $timestamp . '.log';
+            $lines     = [];
+            foreach ($results as $result) {
+                $status  = $result['status'] ?? '';
+                $message = $result['message'] ?? '';
+                $lines[] = '[' . $status . '] ' . $message;
+                if (!empty($result['errors'])) {
+                    foreach ((array)$result['errors'] as $field => $fieldErrors) {
+                        foreach ((array)$fieldErrors as $err) {
+                            $lines[] = '  error: ' . $err;
+                        }
+                    }
+                }
+            }
+            file_put_contents($filename, implode(PHP_EOL, $lines) . PHP_EOL);
+        } catch (\Throwable $e) {
+            Craft::error('PriceAdjuster: could not write log — ' . $e->getMessage(), __METHOD__);
         }
     }
 }
