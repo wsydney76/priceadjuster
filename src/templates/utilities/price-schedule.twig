@@ -20,6 +20,17 @@
                             <a class="go" href="{{ url(craft.app.request.pathInfo, {rule: row.ruleName}) }}">
                                 {{ row.ruleName }}
                             </a>
+                            {% if datesByRule[row.ruleName] is defined %}
+                                <div style="margin-top:.35rem; display:flex; flex-wrap:wrap; gap:.35rem;">
+                                    {% for dr in datesByRule[row.ruleName] %}
+                                        <a href="{{ url(craft.app.request.pathInfo, {rule: row.ruleName, date: dr.effectiveDate}) }}"
+                                           style="font-size:.75rem; padding:.1rem .45rem; border-radius:3px; background:var(--gray-100); color:var(--link-color); white-space:nowrap;"
+                                           title="{{ dr.pending }} pending / {{ dr.applied }} applied">
+                                            {{ dr.effectiveDate }}
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </td>
                         <td class="thin" style="text-align:right;">{{ row.total }}</td>
                         <td class="thin" style="text-align:right;">{{ row.pending }}</td>
@@ -31,10 +42,36 @@
     {% endif %}
 {% else %}
     {# ── Filtered by rule ── #}
-    <p style="margin-bottom:1.5rem;">
-        <a href="{{ url(craft.app.request.pathInfo) }}" class="go" style="font-size:.875rem;">← All rules</a>
-    </p>
-    <h2 style="margin-bottom:1.5rem;">Rule: <strong>{{ currentRule }}</strong></h2>
+    {% if currentDate %}
+        <p style="margin-bottom:1rem;">
+            <a href="{{ url(craft.app.request.pathInfo, {rule: currentRule}) }}" class="go" style="font-size:.875rem;">← {{ currentRule }} (all dates)</a>
+        </p>
+    {% endif %}
+    <h2 style="margin-bottom:1rem;">
+        Rule: <strong>{{ currentRule }}</strong>
+        {% if currentDate %}&nbsp;— Date: <strong>{{ currentDate }}</strong>{% endif %}
+    </h2>
+
+    {# ── Date filter bar ── #}
+    {% if availableDates|length > 1 %}
+        <div style="margin-bottom:1.5rem; display:flex; flex-wrap:wrap; gap:.4rem; align-items:center;">
+            <span style="font-size:.8rem; color:var(--gray-500); margin-right:.25rem;">Filter by date:</span>
+            <a href="{{ url(craft.app.request.pathInfo, {rule: currentRule}) }}"
+               style="font-size:.8rem; padding:.2rem .5rem; border-radius:3px;
+                      background:{{ currentDate is null or currentDate == '' ? 'var(--blue-600)' : 'var(--gray-100)' }};
+                      color:{{ currentDate is null or currentDate == '' ? '#fff' : 'var(--link-color)' }};">
+                All
+            </a>
+            {% for d in availableDates %}
+                <a href="{{ url(craft.app.request.pathInfo, {rule: currentRule, date: d}) }}"
+                   style="font-size:.8rem; padding:.2rem .5rem; border-radius:3px;
+                          background:{{ currentDate == d ? 'var(--blue-600)' : 'var(--gray-100)' }};
+                          color:{{ currentDate == d ? '#fff' : 'var(--link-color)' }};">
+                    {{ d }}
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
 
     {% if grouped is empty %}
         <p class="zilch">No price schedule records found for this rule.</p>
