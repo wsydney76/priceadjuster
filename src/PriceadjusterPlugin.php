@@ -7,6 +7,7 @@ use craft\events\RegisterComponentTypesEvent;
 use craft\helpers\App;
 use craft\services\Utilities;
 use wsydney76\priceadjuster\models\Settings;
+use wsydney76\priceadjuster\services\SchedulerService;
 use wsydney76\priceadjuster\utilities\PriceScheduleUtility;
 use yii\base\Event;
 /**
@@ -14,6 +15,7 @@ use yii\base\Event;
  *
  * @method static PriceadjusterPlugin getInstance()
  * @method Settings getSettings()
+ * @property-read SchedulerService $scheduler
  */
 class PriceadjusterPlugin extends Plugin
 {
@@ -22,7 +24,9 @@ class PriceadjusterPlugin extends Plugin
     public static function config(): array
     {
         return [
-            'components' => [],
+            'components' => [
+                'scheduler' => SchedulerService::class,
+            ],
         ];
     }
     public function init(): void
