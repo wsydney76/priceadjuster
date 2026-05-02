@@ -62,13 +62,14 @@ class SchedulerService extends Component
             $adjustment        = $ruleData['priceAdjustment'] ?? [];
             $promotionalAdj    = $ruleData['promotionalPriceAdjustment'] ?? null;
             $ruleLabel         = $this->buildRuleLabel($ruleData, $index, $rule);
+            $strategy          = $ruleData['friendlyPriceStrategy'] ?? null;
 
             $variants = $this->getVariantsForCriteria($criteria, $variantCriteria);
 
             foreach ($variants as $variant) {
                 $oldPrice = (float)$variant->basePrice;
                 $newPrice = !empty($adjustment)
-                    ? $this->applyAdjustment($oldPrice, $adjustment)
+                    ? $this->applyAdjustment($oldPrice, $adjustment, $strategy)
                     : $oldPrice;
 
                 if ($oldPrice === 0.0 || $newPrice === 0.0) {
@@ -79,7 +80,7 @@ class SchedulerService extends Component
                 $oldPromotionalPrice = $this->zeroAsNull($currentPromoPrice);
 
                 $newPromotionalPrice = $promotionalAdj !== null
-                    ? $this->zeroAsNull($this->applyAdjustment($newPrice, $promotionalAdj))
+                    ? $this->zeroAsNull($this->applyAdjustment($newPrice, $promotionalAdj, $strategy))
                     : null;
 
                 $key = $variant->id . ':' . $effectiveDate;
@@ -544,7 +545,13 @@ class SchedulerService extends Component
     // Price helpers (public so web controllers / tests can reuse them)
     // -------------------------------------------------------------------------
 
-    public function applyAdjustment(float $price, array $adjustment): ?float
+    /**
+     * Apply a price adjustment using an optional friendly-price strategy.
+     *
+     * @param  string|null $strategy  Named rounding strategy (see resolveFriendlyPrice()).
+     *                                null falls back to the plugin-wide default, then 'x.95'.
+     */
+    public function applyAdjustment(float $price, array $adjustment, ?string $strategy = null): ?float
     {
         $type = $adjustment['type'] ?? '';
         if ($type === 'reset') {
@@ -552,7 +559,7 @@ class SchedulerService extends Component
         }
         $value = (float)($adjustment['value'] ?? 0);
         if ($type === 'percentage') {
-            return $this->friendlyPrice($price * (1 + $value / 100));
+            return $this->friendlyPrice($price * (1 + $value / 100), $strategy);
         }
         if ($type === 'amount') {
             return round($price + $value, 2);
@@ -560,9 +567,48 @@ class SchedulerService extends Component
         return $price;
     }
 
-    public function friendlyPrice(float $price): float
+    /**
+     * Apply friendly rounding using the given named strategy.
+     *
+     * Resolution order:
+     *  1. `$strategy` argument (from JSON rule `friendlyPriceStrategy` key)
+     *  2. Plugin setting `friendlyPriceStrategy` (project-wide default)
+     *  3. Hard-coded default: `x.95`
+     *
+     * @param  string|null $strategy  One of: 'x.99', 'x.95', 'x.90', 'round', 'exact'
+     */
+    public function friendlyPrice(float $price, ?string $strategy = null): float
     {
-        return round(floor($price) + 0.95, 2);
+        return $this->resolveFriendlyPrice($price, $strategy);
+    }
+
+    /**
+     * Resolve and apply a named friendly-price rounding strategy.
+     *
+     * | Strategy | Result                              | Example (raw 49.73) |
+     * |----------|-------------------------------------|---------------------|
+     * | `x.99`   | `floor(price) + 0.99`               | 49.99               |
+     * | `x.95`   | `floor(price) + 0.95` *(default)*  | 49.95               |
+     * | `x.90`   | `floor(price) + 0.90`               | 49.90               |
+     * | `round`  | Standard PHP `round($price, 2)`     | 49.73               |
+     * | `exact`  | No rounding at all                  | 49.73               |
+     *
+     * @param  string|null $strategy  Overrides the plugin setting when non-null.
+     */
+    private function resolveFriendlyPrice(float $price, ?string $strategy): float
+    {
+        // Argument strategy takes precedence; fall back to plugin setting; then hard-coded default.
+        $resolved = $strategy
+            ?? PriceadjusterPlugin::getInstance()->getSettings()->friendlyPriceStrategy
+            ?? 'x.95';
+
+        return match ($resolved) {
+            'x.99'  => round(floor($price) + 0.99, 2),
+            'x.90'  => round(floor($price) + 0.90, 2),
+            'round' => round($price, 2),
+            'exact' => $price,
+            default => round(floor($price) + 0.95, 2), // 'x.95' and any unknown value
+        };
     }
 
     public function zeroAsNull(?float $value): ?float

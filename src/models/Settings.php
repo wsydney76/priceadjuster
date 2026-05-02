@@ -34,6 +34,15 @@ class Settings extends Model
      * Disable for large batches where product re-saves are not required.
      */
     public bool $resaveProducts = true;
+
+    /**
+     * Project-wide default friendly-price rounding strategy.
+     * Applied when a rule does not specify its own `friendlyPriceStrategy`.
+     *
+     * Supported values: 'x.99', 'x.95' (default), 'x.90', 'round', 'exact'
+     * null → falls back to the hard-coded default 'x.95'.
+     */
+    public ?string $friendlyPriceStrategy = null;
     public function behaviors(): array
     {
         return [

@@ -50,6 +50,7 @@ Then, install the plugin via the Craft CMS Control Panel, or run `craft plugin/i
 | `exportDirectory` | string | `@root/config/priceadjuster/exports` | Directory where exported CSV files are written |
 | `importDirectory` | string | `@root/config/priceadjuster/imports` | Directory from which CSV files are read for import |
 | `resaveProducts` | bool | `true` | Re-save affected products after `apply`/`rollback` to refresh caches and trigger `afterSave` events |
+| `friendlyPriceStrategy` | string\|null | `null` | Project-wide default rounding strategy for `percentage` adjustments. `null` falls back to `x.95`. See [Friendly-Price Rounding](#friendly-price-rounding). |
 
 All three values accept **Craft aliases** (`@root`, `@webroot`, …) and **environment variable** references (`$MY_VAR`). Values are resolved at runtime via `App::parseEnv()` followed by `Craft::getAlias()`.
 Export and import directories are intentionally separate so the original auto-generated export is never overwritten by a hand-edited import file.
@@ -112,9 +113,60 @@ For convenience, criteria values for entries fields can be specified as either I
 { "type": "amount",     "value": 5  }
 { "type": "reset" }
 ```
-- **`percentage`** — multiplies the current price by `(1 + value/100)` and applies "friendly rounding" (`floor(result) + 0.95`)
+- **`percentage`** — multiplies the current price by `(1 + value/100)` and applies friendly rounding (see [Friendly-Price Rounding](#friendly-price-rounding))
 - **`amount`** — adds `value` to the current price (can be negative), rounded to 2 decimal places
 - **`reset`** — clears the price (sets to `null`), effectively removing it from sale
+
+### Friendly-Price Rounding
+
+`percentage` adjustments pass their raw result through a **friendly-price rounding** step before storing the value. The strategy is resolved in this order:
+
+1. `friendlyPriceStrategy` key on the **individual rule entry** (highest priority)
+2. `friendlyPriceStrategy` plugin **setting** (project-wide default)
+3. Hard-coded fallback: **`x.95`**
+
+#### Available strategies
+
+| Value | Formula | Example (raw 49.73) |
+|-------|---------|---------------------|
+| `x.99` | `floor(price) + 0.99` | 49.99 |
+| `x.95` | `floor(price) + 0.95` | 49.95 |
+| `x.90` | `floor(price) + 0.90` | 49.90 |
+| `round` | `round(price, 2)` | 49.73 |
+| `exact` | no rounding | 49.7300… |
+
+#### Per-rule override in JSON
+
+Add `friendlyPriceStrategy` to any rule entry to override the project default for that entry only:
+
+```json
+[
+  {
+    "effective_date": "2027-01-01",
+    "friendlyPriceStrategy": "x.99",
+    "criteria": { "productCategory": 4953 },
+    "priceAdjustment": { "type": "percentage", "value": 10 }
+  },
+  {
+    "effective_date": "2027-01-01",
+    "friendlyPriceStrategy": "round",
+    "criteria": { "productCategory": 4816 },
+    "promotionalPriceAdjustment": { "type": "percentage", "value": -10 }
+  }
+]
+```
+
+The strategy applies to **both** `priceAdjustment` and `promotionalPriceAdjustment` within the same rule entry. `amount` and `reset` types are never affected.
+
+#### Project-wide default via config file
+
+```php
+// config/_priceadjuster.php
+return [
+    'friendlyPriceStrategy' => 'x.99',
+    // …other settings…
+];
+```
 
 ### Examples
 **Raise by 10% all products in a category:**
