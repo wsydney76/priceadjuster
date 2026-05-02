@@ -97,11 +97,19 @@
         });
     });
 
-    // ── Rule-detail: select by title ─────────────────────────────────────────
+    // ── Rule-detail: filter by title (rows only, checkboxes untouched) ─────────
+    function clearTitleFilter(form, input, clearBtn) {
+        input.value = '';
+        form.querySelectorAll('tbody tr').forEach(function (row) {
+            row.style.display = '';
+        });
+        if (clearBtn) { clearBtn.style.display = 'none'; }
+    }
     document.querySelectorAll('.ps-select-by-title-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            var container = btn.closest('div');
-            var input = container.querySelector('.ps-title-filter-input');
+            var container = btn.closest('span');
+            var input = container ? container.querySelector('.ps-title-filter-input') : null;
+            var clearBtn = container ? container.querySelector('.ps-clear-filter-btn') : null;
             var filter = input ? input.value.trim().toLowerCase() : '';
             if (!filter) {
                 Craft.cp.displayError('Please enter a title to filter by.');
@@ -109,14 +117,40 @@
                 return;
             }
             var form = btn.closest('form');
-            form.querySelectorAll('.ps-delete-cb').forEach(function (cb) {
-                var row = cb.closest('tr');
-                var titleEl = row ? row.querySelector('td strong') : null;
+            form.querySelectorAll('tbody tr').forEach(function (row) {
+                var titleEl = row.querySelector('td strong');
                 var title = titleEl ? titleEl.textContent.toLowerCase() : '';
-                if (title.indexOf(filter) !== -1) {
-                    cb.checked = true;
-                }
+                row.style.display = title.indexOf(filter) !== -1 ? '' : 'none';
             });
+            if (clearBtn) { clearBtn.style.display = ''; }
+            var scrollTarget = form.previousElementSibling || form;
+            if (scrollTarget) { scrollTarget.scrollIntoView({behavior: 'smooth', block: 'start'}); }
+        });
+    });
+    // ── Rule-detail: clear title filter (button or Escape) ────────────────────
+    document.querySelectorAll('.ps-clear-filter-btn').forEach(function (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            var container = clearBtn.closest('span');
+            var input = container ? container.querySelector('.ps-title-filter-input') : null;
+            var form = clearBtn.closest('form');
+            if (form && input) { clearTitleFilter(form, input, clearBtn); }
+        });
+    });
+    document.querySelectorAll('.ps-title-filter-input').forEach(function (input) {
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                var container = input.closest('span');
+                var filterBtn = container ? container.querySelector('.ps-select-by-title-btn') : null;
+                if (filterBtn) { filterBtn.click(); }
+                return;
+            }
+            if (e.key === 'Escape') {
+                var container = input.closest('span');
+                var clearBtn = container ? container.querySelector('.ps-clear-filter-btn') : null;
+                var form = input.closest('form');
+                if (form) { clearTitleFilter(form, input, clearBtn); }
+            }
         });
     });
 
