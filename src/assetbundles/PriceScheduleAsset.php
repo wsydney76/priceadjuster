@@ -15,6 +15,10 @@ class PriceScheduleAsset extends AssetBundle
             CpAsset::class,
         ];
 
+        $this->css = [
+            'css/price-schedule.css',
+        ];
+
         $this->js = [
             'js/price-schedule.js',
         ];
