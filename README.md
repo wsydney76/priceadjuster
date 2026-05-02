@@ -112,10 +112,77 @@ For convenience, criteria values for entries fields can be specified as either I
 { "type": "percentage", "value": 10 }
 { "type": "amount",     "value": 5  }
 { "type": "reset" }
+{ "type": "callback",   "value": "MyNamespace\\Helpers\\PriceHelper::computeNewPrice" }
 ```
 - **`percentage`** — multiplies the current price by `(1 + value/100)` and applies friendly rounding (see [Friendly-Price Rounding](#friendly-price-rounding))
 - **`amount`** — adds `value` to the current price (can be negative), rounded to 2 decimal places
 - **`reset`** — clears the price (sets to `null`), effectively removing it from sale
+- **`callback`** — delegates price calculation entirely to a callable; `value` is a static-method string (see [Adjustment Callbacks](#adjustment-callbacks))
+
+### Adjustment Callbacks
+
+The `callback` type hands full control of price computation to your own PHP method. It works for both `priceAdjustment` and `promotionalPriceAdjustment`.
+
+**Callable signature:** `function(float $price, ?Variant $variant): ?float`
+- Receives the **current** variant price and the **Variant element** (or `null` when called outside of `buildRows()`).
+- Return a `float` for the new price, or `null` to clear the price (equivalent to `"type": "reset"`).
+- The `Variant` object gives you access to SKU, custom fields, `ownerId`, etc. for conditional logic.
+
+#### JSON rule usage
+
+```json
+[
+  {
+    "effective_date": "2027-01-01",
+    "criteria": { "productCategory": 4953 },
+    "priceAdjustment": {
+      "type": "callback",
+      "value": "MyNamespace\\Helpers\\PriceHelper::computeNewPrice"
+    },
+    "promotionalPriceAdjustment": {
+      "type": "callback",
+      "value": "MyNamespace\\Helpers\\PriceHelper::computeNewPromoPrice"
+    }
+  }
+]
+```
+
+#### Example implementation
+
+```php
+namespace MyNamespace\Helpers;
+
+use craft\commerce\elements\Variant;
+
+class PriceHelper
+{
+    /**
+     * Full adjustment callback — receives the current price and the Variant.
+     * Return null to clear the price (same effect as "type": "reset").
+     */
+    public static function computeNewPrice(float $price, ?Variant $variant = null): ?float
+    {
+        // Example: raise by 8% then apply x.19 friendly rounding
+        $raw = $price * 1.08;
+        return round(floor($raw) + 0.19, 2);
+    }
+
+    public static function computeNewPromoPrice(float $price, ?Variant $variant = null): ?float
+    {
+        // Example: skip variants without a promotional price already set
+        if ($variant && $variant->basePromotionalPrice === null) {
+            return null;
+        }
+        // 15% off, rounded to .99
+        return round(floor($price * 0.85) + 0.99, 2);
+    }
+}
+```
+
+> **Note:** The `value` must be a `'ClassName::method'` static-method string in JSON. Closures and array callables can only be used when `applyAdjustment()` is called programmatically.
+> An unresolvable reference throws an `\InvalidArgumentException` immediately — there is no silent fallback.
+>
+> The `friendlyPriceStrategy` key on the same rule entry is **ignored** for `callback` type adjustments — the callback is expected to apply its own rounding.
 
 ### Friendly-Price Rounding
 
@@ -139,7 +206,7 @@ For convenience, criteria values for entries fields can be specified as either I
 
 #### Callback strategy
 
-For custom rounding logic you can point to a **static method** or supply any **PHP callable**. The callable must have the signature `function(float $price): float`.
+For custom rounding logic you can point to a **static method** or supply any **PHP callable**. The callable must have the signature `function(float $price, ?Variant $variant): float`. The `Variant` is passed through from `buildRows()` and is available for conditional rounding logic (e.g. different endings per product type).
 
 **Static-method string** — works in both the JSON rule file and in the PHP config file:
 

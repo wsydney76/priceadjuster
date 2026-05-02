@@ -70,7 +70,7 @@ class SchedulerService extends Component
             foreach ($variants as $variant) {
                 $oldPrice = (float)$variant->basePrice;
                 $newPrice = !empty($adjustment)
-                    ? $this->applyAdjustment($oldPrice, $adjustment, $strategy)
+                    ? $this->applyAdjustment($oldPrice, $adjustment, $strategy, $variant)
                     : $oldPrice;
 
                 if ($oldPrice === 0.0 || $newPrice === 0.0) {
@@ -81,7 +81,7 @@ class SchedulerService extends Component
                 $oldPromotionalPrice = $this->zeroAsNull($currentPromoPrice);
 
                 $newPromotionalPrice = $promotionalAdj !== null
-                    ? $this->zeroAsNull($this->applyAdjustment($newPrice, $promotionalAdj, $strategy))
+                    ? $this->zeroAsNull($this->applyAdjustment($newPrice, $promotionalAdj, $strategy, $variant))
                     : null;
 
                 $key = $variant->id . ':' . $effectiveDate;
@@ -549,18 +549,36 @@ class SchedulerService extends Component
     /**
      * Apply a price adjustment using an optional friendly-price strategy.
      *
-     * @param  string|callable|null $strategy  Named strategy, static-method string, or callable.
-     *                                         null falls back to the plugin-wide default, then 'x.95'.
+     * Adjustment types:
+     *  - `percentage` — multiplies price by (1 + value/100) then applies friendly-price rounding
+     *  - `amount`     — adds value to price (may be negative), rounded to 2 dp
+     *  - `reset`      — returns null (clears the price)
+     *  - `callback`   — delegates entirely to a callable; `value` must be a static-method string
+     *                   or (when set programmatically) any PHP callable.
+     *                   Callable signature: `function(float $price, ?Variant $variant): ?float`
+     *                   Returning null clears the price, identical to `reset`.
+     *
+     * @param  string|callable|null $strategy  Friendly-price strategy, used only for `percentage` type.
+     * @param  Variant|null         $variant   Current variant; passed to callable strategies/callbacks.
      */
-    public function applyAdjustment(float $price, array $adjustment, string|callable|null $strategy = null): ?float
+    public function applyAdjustment(float $price, array $adjustment, string|callable|null $strategy = null, ?Variant $variant = null): ?float
     {
         $type = $adjustment['type'] ?? '';
         if ($type === 'reset') {
             return null;
         }
+        if ($type === 'callback') {
+            $ref = $adjustment['value'] ?? null;
+            if (!$ref) {
+                throw new \InvalidArgumentException('Adjustment type "callback" requires a non-empty "value" key.');
+            }
+            $callable = $this->resolveCallable($ref);
+            $result   = $callable($price, $variant);
+            return $result !== null ? $this->zeroAsNull((float)$result) : null;
+        }
         $value = (float)($adjustment['value'] ?? 0);
         if ($type === 'percentage') {
-            return $this->friendlyPrice($price * (1 + $value / 100), $strategy);
+            return $this->friendlyPrice($price * (1 + $value / 100), $strategy, $variant);
         }
         if ($type === 'amount') {
             return round($price + $value, 2);
@@ -577,10 +595,11 @@ class SchedulerService extends Component
      *  3. Hard-coded fallback: `x.95`
      *
      * @param  string|callable|null $strategy  Named strategy, `'Class::method'` string, or any PHP callable.
+     * @param  Variant|null         $variant   Passed through to callable strategies.
      */
-    public function friendlyPrice(float $price, string|callable|null $strategy = null): float
+    public function friendlyPrice(float $price, string|callable|null $strategy = null, ?Variant $variant = null): float
     {
-        return $this->resolveFriendlyPrice($price, $strategy);
+        return $this->resolveFriendlyPrice($price, $strategy, $variant);
     }
 
     /**
@@ -603,25 +622,17 @@ class SchedulerService extends Component
      *
      * @param  string|callable|null $strategy  Overrides the plugin setting when non-null.
      */
-    private function resolveFriendlyPrice(float $price, string|callable|null $strategy): float
+    private function resolveFriendlyPrice(float $price, string|callable|null $strategy, ?Variant $variant): float
     {
         // Argument takes precedence; fall back to plugin setting; then hard-coded default.
         $resolved = $strategy
             ?? PriceadjusterPlugin::getInstance()->getSettings()->friendlyPriceStrategy
             ?? 'x.95';
 
-        // PHP callable (closure, [$object, 'method'], or ['Class', 'method'] array form).
-        if (is_callable($resolved) && !is_string($resolved)) {
-            return (float)$resolved($price);
-        }
-
-        // Static-method string: 'Namespace\ClassName::methodName'
-        if (is_string($resolved) && str_contains($resolved, '::')) {
-            [$class, $method] = explode('::', $resolved, 2);
-            if (class_exists($class) && method_exists($class, $method)) {
-                return (float)$class::$method($price);
-            }
-            throw new \InvalidArgumentException("friendlyPriceStrategy callback '{$resolved}' could not be resolved.");
+        // PHP callable (closure, [$object, 'method'], or ['Class', 'method'] array form)
+        // or static-method string — delegate to shared resolver.
+        if (!is_string($resolved) || str_contains($resolved, '::')) {
+            return (float)$this->resolveCallable($resolved)($price, $variant);
         }
 
         return match ($resolved) {
@@ -633,6 +644,37 @@ class SchedulerService extends Component
             'exact' => $price,
             default => round(floor($price) + 0.95, 2), // 'x.95' and any unknown value
         };
+    }
+
+    /**
+     * Resolve a static-method string or PHP callable into an actual callable.
+     *
+     * Accepts:
+     *  - Any PHP callable that is not a plain string (closure, array form, invokable object)
+     *  - A `'Namespace\ClassName::methodName'` static-method string
+     *
+     * @throws \InvalidArgumentException if the reference cannot be resolved.
+     */
+    private function resolveCallable(string|callable $ref): callable
+    {
+        // Already a non-string PHP callable (closure, [$obj, 'method'], etc.)
+        if (!is_string($ref)) {
+            if (!is_callable($ref)) {
+                throw new \InvalidArgumentException('Provided value is not callable.');
+            }
+            return $ref;
+        }
+
+        // Static-method string: 'Namespace\ClassName::methodName'
+        if (str_contains($ref, '::')) {
+            [$class, $method] = explode('::', $ref, 2);
+            if (class_exists($class) && method_exists($class, $method)) {
+                return [$class, $method];
+            }
+            throw new \InvalidArgumentException("Callback '{$ref}' could not be resolved (class or method not found).");
+        }
+
+        throw new \InvalidArgumentException("Cannot resolve '{$ref}' as a callable. Use 'ClassName::method' format.");
     }
 
     public function zeroAsNull(?float $value): ?float
