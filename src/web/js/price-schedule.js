@@ -40,7 +40,7 @@
     // ── Rule-detail: select-all toggle ───────────────────────────────────────
     document.querySelectorAll('.ps-select-all').forEach(function (toggle) {
         toggle.addEventListener('change', function () {
-            var table = toggle.closest('table');
+            var table = toggle.closest('form');
             table.querySelectorAll('.ps-delete-cb').forEach(function (cb) {
                 cb.checked = toggle.checked;
             });

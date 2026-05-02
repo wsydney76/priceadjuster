@@ -44,8 +44,7 @@
                 <table class="data full collapsible" style="margin-bottom: 1rem;">
                     <thead>
                     <tr>
-                        <th class="thin" style="width:1rem;"><input type="checkbox" class="ps-select-all"
-                                                                    title="Select all"></th>
+                          <th class="thin" style="width:1rem;"></th>
                         <th>Title / SKU</th>
                         <th class="thin">Old Price</th>
                         <th class="thin">New Price</th>
@@ -103,8 +102,13 @@
                 </table>
                 <div style="position:sticky; bottom:0; z-index:10; background:var(--gray-200); border-top:1px solid var(--hairline-color); margin:0 -1.5rem; padding:.75rem 2rem 1rem; margin-bottom:1rem; display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;">
                     <button type="submit" class="btn submit">Save {{ date }}</button>
-                    <button type="button" class="btn ps-delete-btn" style="color: var(--red-600);">Delete selected</button>
-                    <span style="display:flex; align-items:center; gap:.35rem; margin-left:.5rem;">
+                    <span style="display:inline-block; width:1px; align-self:stretch; background:var(--gray-400); margin:0 .15rem;"></span>
+                    <span style="display:flex; align-items:center; gap:.35rem;">
+                        <label style="display:flex; align-items:center; gap:.35rem; cursor:pointer; font-size:.85rem;"><input type="checkbox" class="ps-select-all" title="Select all"> Select all</label>
+                        <button type="button" class="btn ps-delete-btn" style="color: var(--red-600);">Delete selected</button>
+                    </span>
+                    <span style="display:inline-block; width:1px; align-self:stretch; background:var(--gray-400); margin:0 .15rem;"></span>
+                    <span style="display:flex; align-items:center; gap:.35rem;">
                         <input
                             type="text"
                             class="text ps-title-filter-input"
@@ -114,7 +118,8 @@
                         <button type="button" class="btn ps-select-by-title-btn">Filter by title</button>
                         <button type="button" class="btn ps-clear-filter-btn" style="display:none;">Clear filter</button>
                     </span>
-                    <span style="margin-left:.5rem; display:flex; align-items:center; gap:.35rem;">
+                    <span style="display:inline-block; width:1px; align-self:stretch; background:var(--gray-400); margin:0 .15rem;"></span>
+                    <span style="display:flex; align-items:center; gap:.35rem;">
                         <input
                                 type="text"
                                 class="text ps-new-date-input"
