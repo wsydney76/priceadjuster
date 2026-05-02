@@ -20,6 +20,7 @@ class PriceScheduleController extends Controller
     public function actionBatchUpdate(): Response
     {
         $this->requireCpRequest();
+        $this->requirePermission('utility:price-schedule');
         $this->requirePostRequest();
 
         $updates = Craft::$app->getRequest()->getRequiredBodyParam('updates');
@@ -41,6 +42,7 @@ class PriceScheduleController extends Controller
     public function actionDeleteSelected(): Response
     {
         $this->requireCpRequest();
+        $this->requirePermission('utility:price-schedule');
         $this->requirePostRequest();
 
         $ids    = (array)Craft::$app->getRequest()->getRequiredBodyParam('ids');
@@ -62,6 +64,7 @@ class PriceScheduleController extends Controller
     public function actionDeleteByRule(): Response
     {
         $this->requireCpRequest();
+        $this->requirePermission('utility:price-schedule');
         $this->requirePostRequest();
 
         $rule   = Craft::$app->getRequest()->getRequiredBodyParam('rule');
@@ -83,6 +86,7 @@ class PriceScheduleController extends Controller
     public function actionUpdateEffectiveDate(): Response
     {
         $this->requireCpRequest();
+        $this->requirePermission('utility:price-schedule');
         $this->requirePostRequest();
 
         $request = Craft::$app->getRequest();
