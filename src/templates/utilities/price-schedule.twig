@@ -175,10 +175,23 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                    <div style="position:sticky; bottom:0; z-index:10; background:var(--gray-200); border-top:1px solid var(--hairline-color); margin:0 -1.5rem; padding:.75rem 2rem 1rem; margin-bottom:1rem;">
+                    <div style="position:sticky; bottom:0; z-index:10; background:var(--gray-200); border-top:1px solid var(--hairline-color); margin:0 -1.5rem; padding:.75rem 2rem 1rem; margin-bottom:1rem; display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;">
                         <button type="submit" class="btn submit">Save {{ date }}</button>
-                        <button type="button" class="btn ps-delete-btn" style="margin-left:.5rem; color: var(--red-600);">Delete selected</button>
-                        <button type="button" class="btn" style="margin-left:.5rem;" onclick="location.reload()">↺ Refresh</button>
+                        <button type="button" class="btn ps-delete-btn" style="color: var(--red-600);">Delete selected</button>
+                        <span style="margin-left:.5rem; display:flex; align-items:center; gap:.35rem;">
+                            <input
+                                type="text"
+                                class="text ps-new-date-input"
+                                placeholder="yyyy-mm-dd"
+                                pattern="\d{4}-\d{2}-\d{2}"
+                                maxlength="10"
+                                data-rule="{{ currentRule }}"
+                                data-old-date="{{ date }}"
+                                style="width:120px; font-size:.85rem;"
+                            >
+                            <button type="button" class="btn ps-update-date-btn">Update effective date</button>
+                        </span>
+                        <button type="button" class="btn" onclick="location.reload()">↺ Refresh</button>
                     </div>
                 </form>
             {% endif %}
@@ -268,6 +281,40 @@
                         })
                         .catch(function (e) { Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Delete failed.'); })
                         .finally(function () { deleteBtn.classList.remove('loading'); deleteBtn.disabled = false; });
+                });
+            });
+            // Update effective date
+            document.querySelectorAll('.ps-update-date-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var container = btn.closest('div');
+                    var input     = container.querySelector('.ps-new-date-input');
+                    var newDate   = input ? input.value.trim() : '';
+                    var rule      = input ? input.dataset.rule : '';
+                    var oldDate   = input ? input.dataset.oldDate : '';
+
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                        Craft.cp.displayError('Invalid date format. Expected yyyy-mm-dd.');
+                        input && input.focus();
+                        return;
+                    }
+
+                    if (!confirm('Change effective date from "' + oldDate + '" to "' + newDate + '" for all pending records in rule "' + rule + '"?')) {
+                        return;
+                    }
+
+                    btn.classList.add('loading');
+                    btn.disabled = true;
+
+                    Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/update-effective-date', {
+                        data: { rule: rule, oldDate: oldDate, newDate: newDate }
+                    }).then(function (r) {
+                        Craft.cp.displayNotice(r.data.message || 'Date updated.');
+                        window.location.reload();
+                    }).catch(function (e) {
+                        Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Update failed.');
+                        btn.classList.remove('loading');
+                        btn.disabled = false;
+                    });
                 });
             });
         })();

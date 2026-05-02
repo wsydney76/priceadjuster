@@ -75,6 +75,35 @@ class PriceScheduleController extends Controller
         );
     }
 
+    /**
+     * Update effectiveDate for all pending records matching ruleName + old effective date.
+     *
+     * Expects POST body: rule, oldDate, newDate (all yyyy-mm-dd)
+     */
+    public function actionUpdateEffectiveDate(): Response
+    {
+        $this->requireCpRequest();
+        $this->requirePostRequest();
+
+        $request = Craft::$app->getRequest();
+        $rule    = $request->getRequiredBodyParam('rule');
+        $oldDate = $request->getRequiredBodyParam('oldDate');
+        $newDate = $request->getRequiredBodyParam('newDate');
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $newDate)) {
+            return $this->asFailure('Invalid date format. Expected yyyy-mm-dd.');
+        }
+
+        $result = PriceadjusterPlugin::getInstance()->scheduler->updateEffectiveDate($rule, $oldDate, $newDate);
+
+        return $this->buildResponse(
+            saved: $result['updated'],
+            errors: $result['errors'],
+            zeroMessage: 'No pending records found for this rule/date.',
+            successMessage: Craft::t('site', '{n,plural,=1{1 record updated}other{# records updated}}.', ['n' => $result['updated']]),
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

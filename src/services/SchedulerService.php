@@ -393,6 +393,32 @@ class SchedulerService extends Component
     }
 
     /**
+     * Update effectiveDate for all pending records matching ruleName + old effectiveDate.
+     *
+     * @return array{updated: int, errors: string[]}
+     */
+    public function updateEffectiveDate(string $rule, string $oldDate, string $newDate): array
+    {
+        $updated = 0;
+        $errors  = [];
+
+        $records = PriceSchedule::find()
+            ->where(['ruleName' => $rule, 'effectiveDate' => $oldDate, 'appliedAt' => null])
+            ->all();
+
+        foreach ($records as $record) {
+            $record->effectiveDate = $newDate;
+            if ($record->save()) {
+                $updated++;
+            } else {
+                $errors[] = "Failed updating record #{$record->id}: " . implode(', ', $record->getFirstErrors());
+            }
+        }
+
+        return ['updated' => $updated, 'errors' => $errors];
+    }
+
+    /**
      * Delete all price-schedule records for a given rule name.
      *
      * @return array{deleted: int, errors: string[]}
