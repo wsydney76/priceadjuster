@@ -63,7 +63,11 @@
                     Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/delete-by-rule', {
                         data: { rule: rule }
                     }).then(function (response) {
-                        Craft.cp.displayNotice(response.data.message || 'Deleted.');
+                        // Craft.cp.displayNotice(response.data.message || 'Deleted.');
+                        sessionStorage.setItem(
+                            'priceadjuster.notice',
+                            response.data.message || 'Deleted.'
+                        );
                         window.location.reload();
                     }).catch(function (e) {
                         Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Delete failed.');
@@ -191,7 +195,6 @@
                             >
                             <button type="button" class="btn ps-update-date-btn">Update effective date</button>
                         </span>
-                        <button type="button" class="btn" onclick="location.reload()">↺ Refresh</button>
                     </div>
                 </form>
             {% endif %}
@@ -242,6 +245,14 @@
         {% endfor %}
         <script>
         (function () {
+            document.addEventListener('DOMContentLoaded', function () {
+                var notice = sessionStorage.getItem('priceadjuster.notice');
+
+                if (notice) {
+                    sessionStorage.removeItem('priceadjuster.notice');
+                    Craft.cp.displayNotice(notice);
+                }
+            });
             // Select-all toggle
             document.querySelectorAll('.ps-select-all').forEach(function (toggle) {
                 toggle.addEventListener('change', function () {
@@ -260,7 +271,14 @@
                     btn.classList.add('loading');
                     btn.disabled = true;
                     Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/batch-update', { data: new FormData(form) })
-                        .then(function (r) { Craft.cp.displayNotice(r.data.message || 'Saved.'); })
+                        .then(function (r) {
+                            // Craft.cp.displayNotice(r.data.message || 'Saved.');
+                            sessionStorage.setItem(
+                                'priceadjuster.notice',
+                                r.data.message || 'Saved.'
+                            );
+                            window.location.reload();
+                        })
                         .catch(function (e) { Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'An error occurred.'); })
                         .finally(function () { btn.classList.remove('loading'); btn.disabled = false; });
                 });
@@ -277,6 +295,10 @@
                     Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/delete-selected', { data: { ids: ids } })
                         .then(function (r) {
                             Craft.cp.displayNotice(r.data.message || 'Deleted.');
+                            sessionStorage.setItem(
+                                'priceadjuster.notice',
+                                r.data.message || 'Deleted.'
+                            );
                             window.location.reload();
                         })
                         .catch(function (e) { Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Delete failed.'); })
@@ -308,7 +330,11 @@
                     Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/update-effective-date', {
                         data: { rule: rule, oldDate: oldDate, newDate: newDate }
                     }).then(function (r) {
-                        Craft.cp.displayNotice(r.data.message || 'Date updated.');
+                        // Craft.cp.displayNotice(r.data.message || 'Date updated.');
+                        sessionStorage.setItem(
+                            'priceadjuster.notice',
+                            r.data.message || 'Date updated.'
+                        );
                         window.location.reload();
                     }).catch(function (e) {
                         Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Update failed.');
