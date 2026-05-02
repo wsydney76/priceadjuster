@@ -84,23 +84,26 @@ class SchedulerService extends Component
                     ? $this->zeroAsNull($this->applyAdjustment($newPrice, $promotionalAdj, $strategy, $variant))
                     : null;
 
-                $key = $variant->id . ':' . $effectiveDate;
-                $rowMap[$key] = [
-                    'variantId'           => $variant->id,
-                    'title'               => $variant->owner->title . ' - ' . $variant->title,
-                    'sku'                 => $variant->sku,
-                    'oldPrice'            => $oldPrice,
-                    'newPrice'            => $newPrice,
-                    'oldPromotionalPrice' => $oldPromotionalPrice,
-                    'newPromotionalPrice' => $newPromotionalPrice,
-                    'effectiveDate'       => $effectiveDate,
-                    'ruleLabel'           => $ruleLabel,
-                ];
+                $record                      = new PriceSchedule();
+                $record->variantId           = $variant->id;
+                $record->title               = $variant->owner->title . ' - ' . $variant->title;
+                $record->sku                 = $variant->sku;
+                $record->oldPrice            = $oldPrice;
+                $record->newPrice            = $newPrice;
+                $record->oldPromotionalPrice = $oldPromotionalPrice;
+                $record->newPromotionalPrice = $newPromotionalPrice;
+                $record->effectiveDate       = $effectiveDate;
+                $record->ruleLabel           = $ruleLabel;
+                $record->ruleName            = $rule;
+
+                $key          = $variant->id . ':' . $effectiveDate;
+                $rowMap[$key] = $record;
             }
         }
 
+        /** @var PriceSchedule[] $rows */
         $rows = array_values($rowMap);
-        usort($rows, fn($a, $b) => strcmp($a['effectiveDate'] . $a['title'], $b['effectiveDate'] . $b['title']));
+        usort($rows, fn($a, $b) => strcmp($a->effectiveDate . $a->title, $b->effectiveDate . $b->title));
 
         if (!$this->hasEventHandlers(self::EVENT_BUILD_ROWS)) {
             return $rows;
@@ -119,11 +122,11 @@ class SchedulerService extends Component
     /**
      * Stage rows into the price-schedule table.
      *
-     * @param  array[]  $rows    Output of buildRows()
-     * @param  string   $rule    Rule name (used for ruleName column)
-     * @param  bool     $replace Delete all matching un-applied records first
-     * @param  string|null $date  Limit --replace scope to this effective date
-     * @return array[]  Each item: status (staged|updated|skipped|error), row, message
+     * @param  PriceSchedule[] $rows    Output of buildRows() — unsaved PriceSchedule records
+     * @param  string          $rule    Rule name (used for --replace scope filter)
+     * @param  bool            $replace Delete all matching un-applied records first
+     * @param  string|null     $date    Limit --replace scope to this effective date
+     * @return array[]  Each item: status (staged|updated|skipped|error), record, message
      */
     public function stageRows(array $rows, string $rule, bool $replace = false, ?string $date = null): array
     {
@@ -136,11 +139,10 @@ class SchedulerService extends Component
             }
         }
 
-        foreach ($rows as $row) {
-            $effectiveDate = $row['effectiveDate'];
-            $whereClause   = [
-                'variantId'     => $row['variantId'],
-                'effectiveDate' => $effectiveDate,
+        foreach ($rows as $incoming) {
+            $whereClause = [
+                'variantId'     => $incoming->variantId,
+                'effectiveDate' => $incoming->effectiveDate,
                 'appliedAt'     => null,
             ];
             $exists = PriceSchedule::find()->where($whereClause)->exists();
@@ -148,46 +150,36 @@ class SchedulerService extends Component
             if ($exists) {
                 $record = PriceSchedule::find()->where($whereClause)->one();
                 if (
-                    (float)$record->newPrice === $row['newPrice'] &&
-                    $record->newPromotionalPrice == $row['newPromotionalPrice']
+                    (float)$record->newPrice === (float)$incoming->newPrice &&
+                    $record->newPromotionalPrice == $incoming->newPromotionalPrice
                 ) {
-                    $this->addResult(['status' => 'skipped', 'row' => $row, 'message' => "Unchanged: {$row['sku']}"]);
+                    $this->addResult(['status' => 'skipped', 'record' => $record, 'message' => 'Unchanged: ' . $record->getMessageString()]);
                     continue;
                 }
-                $record->title               = $row['title'];
-                $record->oldPrice            = $row['oldPrice'];
-                $record->newPrice            = $row['newPrice'];
-                $record->oldPromotionalPrice = $row['oldPromotionalPrice'];
-                $record->newPromotionalPrice = $row['newPromotionalPrice'];
-                $record->ruleLabel           = $row['ruleLabel'];
-                $record->ruleName            = $rule;
+                $record->title               = $incoming->title;
+                $record->oldPrice            = $incoming->oldPrice;
+                $record->newPrice            = $incoming->newPrice;
+                $record->oldPromotionalPrice = $incoming->oldPromotionalPrice;
+                $record->newPromotionalPrice = $incoming->newPromotionalPrice;
+                $record->ruleLabel           = $incoming->ruleLabel;
+                $record->ruleName            = $incoming->ruleName;
                 $savedStatus = 'updated';
             } else {
-                $record = new PriceSchedule();
-                $record->variantId           = $row['variantId'];
-                $record->title               = $row['title'];
-                $record->sku                 = $row['sku'];
-                $record->oldPrice            = $row['oldPrice'];
-                $record->newPrice            = $row['newPrice'];
-                $record->oldPromotionalPrice = $row['oldPromotionalPrice'];
-                $record->newPromotionalPrice = $row['newPromotionalPrice'];
-                $record->ruleLabel           = $row['ruleLabel'];
-                $record->ruleName            = $rule;
-                $record->effectiveDate       = $effectiveDate;
+                $record      = $incoming;
                 $savedStatus = 'staged';
             }
 
             if (!$record->save()) {
                 $this->addResult([
                     'status'  => 'error',
-                    'row'     => $row,
-                    'message' => "Failed staging variant {$row['variantId']}",
+                    'record'  => $record,
+                    'message' => 'Failed staging: ' . $record->getMessageString(),
                     'errors'  => $record->getErrors(),
                 ]);
                 continue;
             }
 
-            $this->addResult(['status' => $savedStatus, 'row' => $row, 'message' => "{$row['sku']} | {$row['title']}: {$row['oldPrice']} -> {$row['newPrice']}"]);
+            $this->addResult(['status' => $savedStatus, 'record' => $record, 'message' => $record->getMessageString()]);
         }
 
         return $this->currentResults;
@@ -241,7 +233,7 @@ class SchedulerService extends Component
                 continue;
             }
 
-            $this->addResult(['status' => 'applied', 'record' => $record, 'message' => sprintf("Applied %s: %.2f -> %.2f", $record->sku, (float)$record->oldPrice, $newPrice) . $this->promoSuffixFromRecord($record)]);
+            $this->addResult(['status' => 'applied', 'record' => $record, 'message' => 'Applied: ' . $record->getMessageString()]);
             $productIds[$variant->ownerId] = true;
         }
 
@@ -300,7 +292,7 @@ class SchedulerService extends Component
                 continue;
             }
 
-            $this->addResult(['status' => 'rolledBack', 'record' => $record, 'message' => sprintf("Rolled back %s: %.2f -> %.2f", $record->sku, (float)$record->newPrice, $oldPrice) . $this->promoSuffixFromRecord($record)]);
+            $this->addResult(['status' => 'rolledBack', 'record' => $record, 'message' => 'Rolled back: ' . $record->getMessageString()]);
             $productIds[$variant->ownerId] = true;
         }
 
@@ -453,9 +445,9 @@ class SchedulerService extends Component
         $this->currentResults = [];
         foreach ($records as $record) {
             if (!$record->delete()) {
-                $this->addResult(['status' => 'error', 'record' => $record, 'message' => "Failed deleting record {$record->id} ({$record->sku})"]);
+                $this->addResult(['status' => 'error', 'record' => $record, 'message' => 'Failed deleting: ' . $record->getMessageString()]);
             } else {
-                $this->addResult(['status' => 'deleted', 'record' => $record, 'message' => "Deleted {$record->sku}"]);
+                $this->addResult(['status' => 'deleted', 'record' => $record, 'message' => 'Deleted: ' . $record->getMessageString()]);
             }
         }
         return $this->currentResults;
@@ -784,15 +776,6 @@ class SchedulerService extends Component
         }
     }
 
-    private function promoSuffixFromRecord(PriceSchedule $record): string
-    {
-        if ($record->oldPromotionalPrice === null && $record->newPromotionalPrice === null) {
-            return '';
-        }
-        $old = $record->oldPromotionalPrice !== null ? number_format((float)$record->oldPromotionalPrice, 2) : 'null';
-        $new = $record->newPromotionalPrice !== null ? number_format((float)$record->newPromotionalPrice, 2) : 'null';
-        return sprintf(' | promo: %s -> %s', $old, $new);
-    }
 
     /**
      * Write all result messages to a log file.

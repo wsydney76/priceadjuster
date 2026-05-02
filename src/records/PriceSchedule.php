@@ -21,4 +21,26 @@ class PriceSchedule extends ActiveRecord
     {
         return '{{%_priceadjuster_records}}';
     }
+
+    /**
+     * Return a human-readable message string for this record.
+     *
+     * Format: RuleName | date | Title | SKU | oldPrice -> newPrice [| oldPromo -> newPromo]
+     */
+    public function getMessageString(): string
+    {
+        $fmt = fn(mixed $v): string => $v !== null ? number_format((float)$v, 2) : 'null';
+
+        return sprintf(
+            '%s | %s | %s | %s | %s -> %s | promo: %s -> %s',
+            $this->ruleName,
+            $this->effectiveDate,
+            $this->title,
+            $this->sku,
+            $fmt($this->oldPrice),
+            $fmt($this->newPrice),
+            $fmt($this->oldPromotionalPrice),
+            $fmt($this->newPromotionalPrice),
+        );
+    }
 }

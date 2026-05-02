@@ -5,6 +5,7 @@ namespace wsydney76\priceadjuster\console\controllers;
 use craft\helpers\Console;
 use wsydney76\priceadjuster\events\SchedulerResultEvent;
 use wsydney76\priceadjuster\PriceadjusterPlugin;
+use wsydney76\priceadjuster\records\PriceSchedule;
 use wsydney76\priceadjuster\services\SchedulerService;
 use yii\console\Controller;
 use yii\console\ExitCode;
@@ -52,6 +53,7 @@ class SchedulerController extends Controller
         }
 
         try {
+            /** @var PriceSchedule[] $rows */
             $rows = PriceadjusterPlugin::getInstance()->scheduler->buildRows($this->rule);
         } catch (\RuntimeException $e) {
             $this->stderr($e->getMessage() . "\n", Console::FG_RED);
@@ -59,15 +61,7 @@ class SchedulerController extends Controller
         }
 
         foreach ($rows as $row) {
-            $this->stdout(sprintf(
-                "%s | %s | %s | %.2f -> %.2f%s\n",
-                $row['effectiveDate'],
-                $row['sku'],
-                $row['title'],
-                $row['oldPrice'],
-                $row['newPrice'],
-                $this->formatPromoFromRow($row)
-            ));
+            $this->stdout($row->getMessageString() . "\n");
         }
 
         $this->stdout("\nTotal variants: " . count($rows) . "\n", Console::FG_GREEN);
@@ -88,6 +82,7 @@ class SchedulerController extends Controller
         $service = PriceadjusterPlugin::getInstance()->scheduler;
 
         try {
+            /** @var PriceSchedule[] $rows */
             $rows = $service->buildRows($this->rule);
         } catch (\RuntimeException $e) {
             $this->stderr($e->getMessage() . "\n", Console::FG_RED);
@@ -96,9 +91,9 @@ class SchedulerController extends Controller
 
         $handler = $this->onResult(function(SchedulerResultEvent $event): void {
             match ($event->status) {
-                'skipped' => $this->stdout("Skipped (unchanged): {$event->result['row']['sku']} | {$event->result['row']['title']}\n", Console::FG_YELLOW),
+                'skipped' => $this->stdout("Skipped: {$event->message}\n", Console::FG_YELLOW),
                 'error'   => $this->outputError($event),
-                default   => $this->stdout("Staged {$event->message}{$this->formatPromoFromRow($event->result['row'])}\n"),
+                default   => $this->stdout("{$event->status}: {$event->message}\n"),
             };
         });
 
@@ -129,7 +124,7 @@ class SchedulerController extends Controller
                 'error'   => $this->outputError($event),
                 'skipped' => $this->stderr("Skipped ({$event->message})\n", Console::FG_RED),
                 'resaved' => $this->stdout("{$event->message}\n", Console::FG_CYAN),
-                default   => $this->stdout("{$event->message}{$this->formatPromoFromRecord($event->result['record'])}\n", Console::FG_GREEN),
+                default   => $this->stdout("{$event->message}\n", Console::FG_GREEN),
             };
         });
 
@@ -157,7 +152,7 @@ class SchedulerController extends Controller
                 'error'   => $this->outputError($event),
                 'skipped' => $this->stderr("Skipped ({$event->message})\n", Console::FG_RED),
                 'resaved' => $this->stdout("{$event->message}\n", Console::FG_CYAN),
-                default   => $this->stdout("{$event->message}{$this->formatPromoFromRecord($event->result['record'])}\n", Console::FG_GREEN),
+                default   => $this->stdout("{$event->message}\n", Console::FG_GREEN),
             };
         });
 
@@ -245,24 +240,5 @@ class SchedulerController extends Controller
             print_r($event->result['errors']);
         }
     }
-
-    private function formatPromoFromRow(array $row): string
-    {
-        if ($row['oldPromotionalPrice'] === null && $row['newPromotionalPrice'] === null) {
-            return '';
-        }
-        $old = $row['oldPromotionalPrice'] !== null ? number_format($row['oldPromotionalPrice'], 2) : 'null';
-        $new = $row['newPromotionalPrice'] !== null ? number_format($row['newPromotionalPrice'], 2) : 'null';
-        return sprintf(' | promo: %s -> %s', $old, $new);
-    }
-
-    private function formatPromoFromRecord(mixed $record): string
-    {
-        if ($record->oldPromotionalPrice === null && $record->newPromotionalPrice === null) {
-            return '';
-        }
-        $old = $record->oldPromotionalPrice !== null ? number_format((float)$record->oldPromotionalPrice, 2) : 'null';
-        $new = $record->newPromotionalPrice !== null ? number_format((float)$record->newPromotionalPrice, 2) : 'null';
-        return sprintf(' | promo: %s -> %s', $old, $new);
-    }
 }
+
