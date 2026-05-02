@@ -39,10 +39,15 @@ class Settings extends Model
      * Project-wide default friendly-price rounding strategy.
      * Applied when a rule does not specify its own `friendlyPriceStrategy`.
      *
-     * Supported values: 'x.99', 'x.95' (default), 'x.90', 'round', 'exact'
-     * null → falls back to the hard-coded default 'x.95'.
+     * Accepted values:
+     *  - Named string: 'x.99', 'x.95', 'x.90', 'round', 'ceil', 'floor', 'exact'
+     *  - Static-method string: 'MyNamespace\Helpers\PriceHelper::applyFriendlyPrice'
+     *  - Any PHP callable: a closure or [$object, 'method'] array (set in config/_priceadjuster.php only)
+     *  - null → falls back to the hard-coded default 'x.95'
+     *
+     * Callable signature: function(float $price): float
      */
-    public ?string $friendlyPriceStrategy = null;
+    public mixed $friendlyPriceStrategy = null;
     public function behaviors(): array
     {
         return [

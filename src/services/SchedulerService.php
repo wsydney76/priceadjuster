@@ -549,10 +549,10 @@ class SchedulerService extends Component
     /**
      * Apply a price adjustment using an optional friendly-price strategy.
      *
-     * @param  string|null $strategy  Named rounding strategy (see resolveFriendlyPrice()).
-     *                                null falls back to the plugin-wide default, then 'x.95'.
+     * @param  string|callable|null $strategy  Named strategy, static-method string, or callable.
+     *                                         null falls back to the plugin-wide default, then 'x.95'.
      */
-    public function applyAdjustment(float $price, array $adjustment, ?string $strategy = null): ?float
+    public function applyAdjustment(float $price, array $adjustment, string|callable|null $strategy = null): ?float
     {
         $type = $adjustment['type'] ?? '';
         if ($type === 'reset') {
@@ -569,48 +569,67 @@ class SchedulerService extends Component
     }
 
     /**
-     * Apply friendly rounding using the given named strategy.
+     * Apply friendly rounding using the given strategy.
      *
      * Resolution order:
-     *  1. `$strategy` argument (from JSON rule `friendlyPriceStrategy` key)
+     *  1. `$strategy` argument (from JSON rule `friendlyPriceStrategy` key, or passed directly)
      *  2. Plugin setting `friendlyPriceStrategy` (project-wide default)
-     *  3. Hard-coded default: `x.95`
+     *  3. Hard-coded fallback: `x.95`
      *
-     * @param  string|null $strategy  One of: 'x.99', 'x.95', 'x.90', 'round', 'exact'
+     * @param  string|callable|null $strategy  Named strategy, `'Class::method'` string, or any PHP callable.
      */
-    public function friendlyPrice(float $price, ?string $strategy = null): float
+    public function friendlyPrice(float $price, string|callable|null $strategy = null): float
     {
         return $this->resolveFriendlyPrice($price, $strategy);
     }
 
     /**
-     * Resolve and apply a named friendly-price rounding strategy.
+     * Resolve and apply a friendly-price rounding strategy.
      *
-     * | Strategy | Result                              | Example (raw 49.73) |
-     * |----------|-------------------------------------|---------------------|
-     * | `x.99`   | `floor(price) + 0.99`               | 49.99               |
-     * | `x.95`   | `floor(price) + 0.95` *(default)*  | 49.95               |
-     * | `x.90`   | `floor(price) + 0.90`               | 49.90               |
-     * | `round`  | Standard PHP `round($price, 0)`     | 50.00               |
-     * | `floor`  | Standard PHP `floor($price)`     | 49.00               |
-     * | `ceail`  | Standard PHP `ceil($price)`     | 50.00               |
-     * | `exact`  | No rounding at all                  | 49.73               |
+     * Named strategies:
+     * | Strategy | Formula                     | Example (raw 49.73) |
+     * |----------|-----------------------------|---------------------|
+     * | `x.99`   | `floor(price) + 0.99`       | 49.99               |
+     * | `x.95`   | `floor(price) + 0.95`       | 49.95  *(default)*  |
+     * | `x.90`   | `floor(price) + 0.90`       | 49.90               |
+     * | `round`  | `round(price, 0)`           | 50.00               |
+     * | `ceil`   | `ceil(price)`               | 50.00               |
+     * | `floor`  | `floor(price)`              | 49.00               |
+     * | `exact`  | no rounding                 | 49.73               |
      *
-     * @param  string|null $strategy  Overrides the plugin setting when non-null.
+     * Callable strategies (PHP config / programmatic use only):
+     * - Any PHP callable with signature `function(float $price): float`
+     * - Static-method string: `'MyNamespace\Helpers\PriceHelper::myMethod'`
+     *
+     * @param  string|callable|null $strategy  Overrides the plugin setting when non-null.
      */
-    private function resolveFriendlyPrice(float $price, ?string $strategy): float
+    private function resolveFriendlyPrice(float $price, string|callable|null $strategy): float
     {
-        // Argument strategy takes precedence; fall back to plugin setting; then hard-coded default.
+        // Argument takes precedence; fall back to plugin setting; then hard-coded default.
         $resolved = $strategy
             ?? PriceadjusterPlugin::getInstance()->getSettings()->friendlyPriceStrategy
             ?? 'x.95';
 
+        // PHP callable (closure, [$object, 'method'], or ['Class', 'method'] array form).
+        if (is_callable($resolved) && !is_string($resolved)) {
+            return (float)$resolved($price);
+        }
+
+        // Static-method string: 'Namespace\ClassName::methodName'
+        if (is_string($resolved) && str_contains($resolved, '::')) {
+            [$class, $method] = explode('::', $resolved, 2);
+            if (class_exists($class) && method_exists($class, $method)) {
+                return (float)$class::$method($price);
+            }
+            throw new \InvalidArgumentException("friendlyPriceStrategy callback '{$resolved}' could not be resolved.");
+        }
+
         return match ($resolved) {
             'x.99'  => round(floor($price) + 0.99, 2),
             'x.90'  => round(floor($price) + 0.90, 2),
-            'round' => round($price, 0),
-            'floor' => floor($price),
-            'ceil' => ceil($price),
+            'round' => (float)round($price, 0),
+            'ceil'  => (float)ceil($price),
+            'floor' => (float)floor($price),
             'exact' => $price,
             default => round(floor($price) + 0.95, 2), // 'x.95' and any unknown value
         };

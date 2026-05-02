@@ -50,7 +50,7 @@ Then, install the plugin via the Craft CMS Control Panel, or run `craft plugin/i
 | `exportDirectory` | string | `@root/config/priceadjuster/exports` | Directory where exported CSV files are written |
 | `importDirectory` | string | `@root/config/priceadjuster/imports` | Directory from which CSV files are read for import |
 | `resaveProducts` | bool | `true` | Re-save affected products after `apply`/`rollback` to refresh caches and trigger `afterSave` events |
-| `friendlyPriceStrategy` | string\|null | `null` | Project-wide default rounding strategy for `percentage` adjustments. `null` falls back to `x.95`. See [Friendly-Price Rounding](#friendly-price-rounding). |
+| `friendlyPriceStrategy` | `string\|callable\|null` | `null` | Project-wide default rounding strategy for `percentage` adjustments. `null` falls back to `x.95`. See [Friendly-Price Rounding](#friendly-price-rounding). |
 
 All three values accept **Craft aliases** (`@root`, `@webroot`, …) and **environment variable** references (`$MY_VAR`). Values are resolved at runtime via `App::parseEnv()` followed by `Craft::getAlias()`.
 Export and import directories are intentionally separate so the original auto-generated export is never overwritten by a hand-edited import file.
@@ -130,12 +130,61 @@ For convenience, criteria values for entries fields can be specified as either I
 | Value   | Formula               | Example (raw 49.73) |
 |---------|-----------------------|---------------------|
 | `x.99`  | `floor(price) + 0.99` | 49.99               |
-| `x.95`  | `floor(price) + 0.95` | 49.95               |
+| `x.95`  | `floor(price) + 0.95` | 49.95 *(default)*   |
 | `x.90`  | `floor(price) + 0.90` | 49.90               |
-| `round` | `round(price, 0)`     | 49.73               |
+| `round` | `round(price, 0)`     | 50.00               |
 | `ceil`  | `ceil(price)`         | 50.00               |
-| `floor` | `floor(price)`     | 49..00              |
-| `exact` | no rounding           | 49.7300…            |
+| `floor` | `floor(price)`        | 49.00               |
+| `exact` | no rounding           | 49.73               |
+
+#### Callback strategy
+
+For custom rounding logic you can point to a **static method** or supply any **PHP callable**. The callable must have the signature `function(float $price): float`.
+
+**Static-method string** — works in both the JSON rule file and in the PHP config file:
+
+```json
+{
+  "effective_date": "2027-01-01",
+  "friendlyPriceStrategy": "mynamespace\\helpers\\PriceHelper::applyFriendlyPrice",
+  "criteria": { "productCategory": 4953 },
+  "priceAdjustment": { "type": "percentage", "value": 10 }
+}
+```
+
+```php
+// config/_priceadjuster.php
+return [
+    'friendlyPriceStrategy' => 'mynamespace\helpers\PriceHelper::applyFriendlyPrice',
+];
+```
+
+```php
+// mynamespace/helpers/PriceHelper.php
+namespace mynamespace\helpers;
+
+class PriceHelper
+{
+    public static function applyFriendlyPrice(float $price): float
+    {
+        // Example: always end in .98
+        return round(floor($price) + 0.98, 2);
+    }
+}
+```
+
+**Closure** — only available in the PHP config file (closures cannot be expressed in JSON):
+
+```php
+// config/_priceadjuster.php
+return [
+    'friendlyPriceStrategy' => function(float $price): float {
+        return round(floor($price) + 0.98, 2);
+    },
+];
+```
+
+> **Note:** A static-method string that cannot be resolved (class or method does not exist) throws an `\InvalidArgumentException` so the misconfiguration is immediately visible rather than silently falling back.
 
 #### Per-rule override in JSON
 
