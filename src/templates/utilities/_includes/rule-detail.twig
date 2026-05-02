@@ -27,12 +27,15 @@
     {% for date, records in grouped %}
         {% set pending = records | filter(r => r.appliedAt is null) %}
         {% set applied = records | filter(r => r.appliedAt is not null) %}
-        <h2 class="ps-date-group-heading">
-            Effective date: <strong>{{ date }}</strong>
-            <small class="ps-date-group-meta">
-                {{ records|length }} record(s){% if applied|length %}, {{ applied|length }} applied{% endif %}
-            </small>
-        </h2>
+        <details class="ps-date-group" open>
+        <summary class="ps-date-group-summary">
+            <h2 class="ps-date-group-heading">
+                Effective date: <strong>{{ date }}</strong>
+                <small class="ps-date-group-meta">
+                    {{ records|length }} record(s){% if applied|length %}, {{ applied|length }} applied{% endif %}
+                </small>
+            </h2>
+        </summary>
         {% if pending is not empty %}
             <form method="post" class="price-schedule-form">
                 {{ csrfInput() }}
@@ -170,5 +173,6 @@
                 </table>
             </details>
         {% endif %}
+        </details>
     {% endfor %}
 {% endif %}

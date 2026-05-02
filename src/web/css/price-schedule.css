@@ -24,10 +24,24 @@
     background: var(--gray-100);
     color: var(--link-color);
     white-space: nowrap;
+    transition: background-color .15s ease, color .15s ease;
+}
+
+.ps-date-badge:hover,
+.ps-date-badge:focus-visible {
+    background: var(--gray-300);
+    color: var(--link-color);
 }
 
 .ps-btn-danger {
     color: var(--red-600);
+    transition: background-color .15s ease, color .15s ease;
+}
+
+.ps-btn-danger:hover,
+.ps-btn-danger:focus-visible {
+    background-color: var(--red-600);
+    color: #fff;
 }
 
 /* ── Rule detail ── */
@@ -56,15 +70,48 @@
     border-radius: 3px;
     background: var(--gray-100);
     color: var(--link-color);
+    transition: background-color .15s ease, color .15s ease;
 }
 
-.ps-date-filter-link--active {
+.ps-date-filter-link:hover,
+.ps-date-filter-link:focus-visible {
+    background: var(--gray-300);
+    color: var(--link-color);
+}
+
+.ps-date-filter-link--active,
+.ps-date-filter-link--active:hover,
+.ps-date-filter-link--active:focus-visible {
     background: var(--blue-600);
     color: #fff;
 }
 
-.ps-date-group-heading {
+.ps-date-group {
     margin-top: 1.5rem;
+}
+
+.ps-date-group-summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.ps-date-group-summary::-webkit-details-marker {
+    display: none;
+}
+
+.ps-date-group-summary h2::before {
+    content: '▸ ';
+    font-size: 1.5em;
+    color: var(--gray-400);
+}
+
+.ps-date-group[open] > .ps-date-group-summary h2::before {
+    content: '▾ ';
+}
+
+.ps-date-group-heading {
+    padding: 0 0 .75rem 0;
+
 }
 
 .ps-date-group-meta {
