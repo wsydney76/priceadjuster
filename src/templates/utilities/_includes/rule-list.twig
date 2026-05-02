@@ -1,0 +1,52 @@
+{# ── Rule index ── #}
+{% if ruleList is empty %}
+    <p class="zilch">No price schedule records found.</p>
+{% else %}
+    <h2>Price Schedule Rules</h2>
+    <table class="data full collapsible">
+        <thead>
+        <tr>
+            <th>Rule</th>
+            <th class="thin" style="text-align:right;">Total</th>
+            <th class="thin" style="text-align:right;">Pending</th>
+            <th class="thin" style="text-align:right;">Applied</th>
+            <th class="thin"></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for row in ruleList %}
+            <tr>
+                <td style="display: flex; align-items: center">
+                    <a class="go" href="{{ url(craft.app.request.pathInfo, {rule: row.ruleName}) }}">
+                        {{ row.ruleName }}
+                    </a>
+                    {% if datesByRule[row.ruleName] is defined %}
+                        <div style="margin-left: 24px; margin-top:.35rem; display:flex; flex-wrap:wrap; gap:.35rem;">
+                            {% for dr in datesByRule[row.ruleName] %}
+                                <a href="{{ url(craft.app.request.pathInfo, {rule: row.ruleName, date: dr.effectiveDate}) }}"
+                                   style="font-size:.75rem; padding:.1rem .45rem; border-radius:3px; background:var(--gray-100); color:var(--link-color); white-space:nowrap;"
+                                   title="{{ dr.pending }} pending / {{ dr.applied }} applied">
+                                    {{ dr.effectiveDate }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </td>
+                <td class="thin" style="text-align:right;">{{ row.total }}</td>
+                <td class="thin" style="text-align:right;">{{ row.pending }}</td>
+                <td class="thin" style="text-align:right;">{{ row.applied }}</td>
+                <td class="thin" style="text-align:right;">
+                    <button type="button"
+                            class="btn small ps-delete-rule-btn"
+                            data-rule="{{ row.ruleName }}"
+                            data-total="{{ row.total }}"
+                            style="color:var(--red-600);">
+                        Delete all
+                    </button>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+

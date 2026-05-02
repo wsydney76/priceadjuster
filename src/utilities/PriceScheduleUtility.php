@@ -3,6 +3,7 @@ namespace wsydney76\priceadjuster\utilities;
 use Craft;
 use craft\base\Utility;
 use craft\commerce\elements\Variant;
+use wsydney76\priceadjuster\assetbundles\PriceScheduleAsset;
 use wsydney76\priceadjuster\records\PriceSchedule;
 use yii\db\Expression;
 /**
@@ -27,6 +28,8 @@ class PriceScheduleUtility extends Utility
         $request = Craft::$app->getRequest();
         $rule = $request->getParam('rule');
         $date = $request->getParam('date');
+
+        Craft::$app->getView()->registerAssetBundle(PriceScheduleAsset::class);
 
         // No rule selected — list distinct rule names from DB
         if ($rule === null || $rule === '') {
