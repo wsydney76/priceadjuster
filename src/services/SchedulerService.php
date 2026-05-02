@@ -11,6 +11,7 @@ use wsydney76\priceadjuster\events\SchedulerResultEvent;
 use wsydney76\priceadjuster\PriceadjusterPlugin;
 use wsydney76\priceadjuster\records\PriceSchedule;
 use yii\base\Component;
+use function floor;
 
 /**
  * Scheduler Service — core price-schedule logic usable from console or web controllers.
@@ -590,7 +591,9 @@ class SchedulerService extends Component
      * | `x.99`   | `floor(price) + 0.99`               | 49.99               |
      * | `x.95`   | `floor(price) + 0.95` *(default)*  | 49.95               |
      * | `x.90`   | `floor(price) + 0.90`               | 49.90               |
-     * | `round`  | Standard PHP `round($price, 2)`     | 49.73               |
+     * | `round`  | Standard PHP `round($price, 0)`     | 50.00               |
+     * | `floor`  | Standard PHP `floor($price)`     | 49.00               |
+     * | `ceail`  | Standard PHP `ceil($price)`     | 50.00               |
      * | `exact`  | No rounding at all                  | 49.73               |
      *
      * @param  string|null $strategy  Overrides the plugin setting when non-null.
@@ -605,7 +608,9 @@ class SchedulerService extends Component
         return match ($resolved) {
             'x.99'  => round(floor($price) + 0.99, 2),
             'x.90'  => round(floor($price) + 0.90, 2),
-            'round' => round($price, 2),
+            'round' => round($price, 0),
+            'floor' => floor($price),
+            'ceil' => ceil($price),
             'exact' => $price,
             default => round(floor($price) + 0.95, 2), // 'x.95' and any unknown value
         };

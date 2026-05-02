@@ -127,13 +127,15 @@ For convenience, criteria values for entries fields can be specified as either I
 
 #### Available strategies
 
-| Value | Formula | Example (raw 49.73) |
-|-------|---------|---------------------|
-| `x.99` | `floor(price) + 0.99` | 49.99 |
-| `x.95` | `floor(price) + 0.95` | 49.95 |
-| `x.90` | `floor(price) + 0.90` | 49.90 |
-| `round` | `round(price, 2)` | 49.73 |
-| `exact` | no rounding | 49.7300… |
+| Value   | Formula               | Example (raw 49.73) |
+|---------|-----------------------|---------------------|
+| `x.99`  | `floor(price) + 0.99` | 49.99               |
+| `x.95`  | `floor(price) + 0.95` | 49.95               |
+| `x.90`  | `floor(price) + 0.90` | 49.90               |
+| `round` | `round(price, 0)`     | 49.73               |
+| `ceil`  | `ceil(price)`         | 50.00               |
+| `floor` | `floor(price)`     | 49..00              |
+| `exact` | no rounding           | 49.7300…            |
 
 #### Per-rule override in JSON
 
