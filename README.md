@@ -95,6 +95,10 @@ Each file contains a JSON **array** of rule entries. Multiple entries can share 
 | `priceAdjustment` | `object` | — | How to adjust `basePrice` (omit to leave price unchanged) |
 | `promotionalPriceAdjustment` | `object` | — | How to adjust `basePromotionalPrice` (omit to leave promotional price unchanged) |
 
+Rules are processed in order of appearance in the JSON file, and the last matching rule wins if multiple entries target the same variant on the same date.
+
+Rules can have any arbitrary additional keys which are ignored by the plugin but included in the `ruleSnapshot` property of each `PriceSchedule` row for auditing or custom logic in event listeners.
+
 ### Criteria examples
 ```json
 { "id": [19827, 21153] }
