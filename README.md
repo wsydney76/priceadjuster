@@ -466,11 +466,14 @@ Event::on(
         if ($event->ruleName === 'theRuleNameImInterestedIn') {
             // Example: apply a tiered promotional discount based on the new price.
             foreach ($event->rows as $row) {
-                $price = (float)$row->newPrice;
-                if ($price > 100) {
-                    $row->newPromotionalPrice = $price - 20;
-                } elseif ($price >= 50) {
-                    $row->newPromotionalPrice = $price - 10;
+                // exclude 'reset' promotionalPrices
+                if ($row->newPromotionalPrice) {
+                    $price = (float)$row->newPrice;
+                    if ($price > 100) {
+                        $row->newPromotionalPrice = $price - 20;
+                    } elseif ($price >= 50) {
+                        $row->newPromotionalPrice = $price - 10;
+                    }
                 }
             }
         }
