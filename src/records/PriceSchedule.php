@@ -11,8 +11,9 @@ use craft\db\ActiveRecord;
  * @property string|float|null $oldPromotionalPrice
  * @property string|float|null $newPromotionalPrice
  * @property string $ruleName
- * @property string $ruleLabel
  * @property int|null $ruleIndex
+ * @property string $ruleLabel
+ * @property string|null $ruleSnapshot
  * @property string $effectiveDate
  * @property string|null $appliedAt
  */

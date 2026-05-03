@@ -447,7 +447,21 @@ Event payload:
 - `$event->rows` — computed rows as **`PriceSchedule[]`** (mutable array of `wsydney76\priceadjuster\records\PriceSchedule` ActiveRecord instances)
 
 Each `PriceSchedule` record exposes the following properties:
-`variantId`, `title`, `sku`, `oldPrice`, `newPrice`, `oldPromotionalPrice`, `newPromotionalPrice`, `effectiveDate`, `ruleName`, `ruleLabel`.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `variantId` | `int` | Commerce variant ID |
+| `title` | `string` | Product + variant title |
+| `sku` | `string\|null` | Variant SKU |
+| `oldPrice` | `float` | Price before the adjustment |
+| `newPrice` | `float` | Computed new price |
+| `oldPromotionalPrice` | `float\|null` | Promotional price before the adjustment |
+| `newPromotionalPrice` | `float\|null` | Computed new promotional price |
+| `effectiveDate` | `string` | `YYYY-MM-DD` effective date from the rule entry |
+| `ruleName` | `string` | Rule filename (without `.json`) |
+| `ruleLabel` | `string` | Human-readable label (from `label` key or auto-generated) |
+| `ruleIndex` | `int` | Zero-based index of the rule entry within the JSON file |
+| `ruleSnapshot` | `string` | JSON-encoded copy of the full rule entry as it was when the row was built — useful for auditing or reconstructing context in event listeners |
 
 Example listener (registered in your project bootstrap/module):
 
