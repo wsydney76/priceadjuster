@@ -20,6 +20,7 @@ class Install extends Migration
             'oldPromotionalPrice' => $this->decimal(14, 4),
             'newPromotionalPrice' => $this->decimal(14, 4),
             'ruleName' => $this->string()->notNull(),
+            'ruleIndex' => $this->integer()->notNull(),
             'ruleLabel' => $this->string()->notNull(),
             'effectiveDate' => $this->date()->notNull(),
             'appliedAt' => $this->dateTime()->null(),

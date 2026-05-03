@@ -95,6 +95,7 @@ class SchedulerService extends Component
                 $record->effectiveDate       = $effectiveDate;
                 $record->ruleLabel           = $ruleLabel;
                 $record->ruleName            = $rule;
+                $record->ruleIndex           = $index;
 
                 $key          = $variant->id . ':' . $effectiveDate;
                 $rowMap[$key] = $record;
@@ -163,6 +164,7 @@ class SchedulerService extends Component
                 $record->newPromotionalPrice = $incoming->newPromotionalPrice;
                 $record->ruleLabel           = $incoming->ruleLabel;
                 $record->ruleName            = $incoming->ruleName;
+                $record->ruleIndex           = $incoming->ruleIndex;
                 $savedStatus = 'updated';
             } else {
                 $record      = $incoming;

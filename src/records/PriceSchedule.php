@@ -12,6 +12,7 @@ use craft\db\ActiveRecord;
  * @property string|float|null $newPromotionalPrice
  * @property string $ruleName
  * @property string $ruleLabel
+ * @property int|null $ruleIndex
  * @property string $effectiveDate
  * @property string|null $appliedAt
  */
@@ -32,8 +33,9 @@ class PriceSchedule extends ActiveRecord
         $fmt = fn(mixed $v): string => $v !== null ? number_format((float)$v, 2) : 'null';
 
         return sprintf(
-            '%s | %s | %s | %s | %s -> %s | promo: %s -> %s',
+            '%s #%s | %s | %s | %s | %s -> %s | promo: %s -> %s',
             $this->ruleName,
+            (string)$this->ruleIndex,
             $this->effectiveDate,
             $this->title,
             $this->sku,
