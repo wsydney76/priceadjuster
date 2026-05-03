@@ -23,7 +23,7 @@ class Install extends Migration
             'ruleName' => $this->string()->notNull(),
             'ruleIndex' => $this->integer()->notNull(),
             'ruleLabel' => $this->string()->notNull(),
-            'ruleSnapshot' => $this->text(),
+            'ruleSnapshot' => $this->json(),
             'updateHistory' => $this->json(),
             'appliedAt' => $this->dateTime()->null(),
             'dateCreated' => $this->dateTime()->notNull(),

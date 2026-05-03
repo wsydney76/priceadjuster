@@ -16,7 +16,7 @@ use DateTimeZone;
  * @property string $ruleName
  * @property int|null $ruleIndex
  * @property string $ruleLabel
- * @property string|null $ruleSnapshot
+ * @property array|null $ruleSnapshot
  * @property string $effectiveDate
  * @property string|null $appliedAt
  * @property array|null $updateHistory
