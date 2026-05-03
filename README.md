@@ -49,10 +49,11 @@ Then, install the plugin via the Craft CMS Control Panel, or run `craft plugin/i
 | `rulesDirectory` | string | `@root/config/priceadjuster/rules` | Directory containing rule JSON files |
 | `exportDirectory` | string | `@root/config/priceadjuster/exports` | Directory where exported CSV files are written |
 | `importDirectory` | string | `@root/config/priceadjuster/imports` | Directory from which CSV files are read for import |
+| `logDirectory` | string | `@root/config/priceadjuster/logs` | Directory where operation log files are written after `apply`, `rollback`, and `stage` commands |
 | `resaveProducts` | bool | `true` | Re-save affected products after `apply`/`rollback` to refresh caches and trigger `afterSave` events |
 | `friendlyPriceStrategy` | `string\|callable\|null` | `null` | Project-wide default rounding strategy for `percentage` adjustments. `null` falls back to `x.95`. See [Friendly-Price Rounding](#friendly-price-rounding). |
 
-All three values accept **Craft aliases** (`@root`, `@webroot`, …) and **environment variable** references (`$MY_VAR`). Values are resolved at runtime via `App::parseEnv()` followed by `Craft::getAlias()`.
+All four directory values accept **Craft aliases** (`@root`, `@webroot`, …) and **environment variable** references (`$MY_VAR`). Values are resolved at runtime via `App::parseEnv()` followed by `Craft::getAlias()`.
 Export and import directories are intentionally separate so the original auto-generated export is never overwritten by a hand-edited import file.
 
 ### Via CP
@@ -68,6 +69,7 @@ return [
     'rulesDirectory'  => '$PRICEADJUSTER_RULES_DIR',
     'exportDirectory' => '$PRICEADJUSTER_EXPORT_DIR',
     'importDirectory' => '$PRICEADJUSTER_IMPORT_DIR',
+    'logDirectory'    => '$PRICEADJUSTER_LOG_DIR',
     'resaveProducts'  => true,
 ];
 ```
@@ -76,6 +78,7 @@ return [
 PRICEADJUSTER_RULES_DIR=/var/www/html/_priceadjuster/rules
 PRICEADJUSTER_EXPORT_DIR=/var/www/html/_priceadjuster/export
 PRICEADJUSTER_IMPORT_DIR=/var/www/html/_priceadjuster/import
+PRICEADJUSTER_LOG_DIR=/var/www/html/_priceadjuster/logs
 ```
 > **Tip:** Use absolute container paths in `.env` (e.g. `/var/www/html/…` in ddev) or Craft aliases in `config/_priceadjuster.php` (e.g. `@root/…`). Do not mix both styles in the same value.
 
