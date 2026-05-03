@@ -435,42 +435,50 @@ craft _priceadjuster/import/index --date=2027-01-01 --dry-run=1
 **Expected CSV columns:** `SKU`, `New Price`, `New Promo Price` (others are ignored on import).
 
 ## Extension Hook — `buildRows` Event
-`SchedulerController::buildRows()` exposes an event hook so projects can adjust computed schedule rows before preview/stage uses them.
+`SchedulerService::buildRows()` exposes an event hook so projects can adjust computed schedule rows before preview/stage uses them.
 
-- Event name: `SchedulerController::EVENT_BUILD_ROWS`
+- Event name: `SchedulerService::EVENT_BUILD_ROWS`
 - Event class: `wsydney76\priceadjuster\events\BuildRowsEvent`
 - Triggered only when listeners are attached.
 
 Event payload:
+- `$event->ruleName` — the rule name (filename without `.json`) passed via `--rule`
 - `$event->rules` — loaded JSON rules array
-- `$event->rows` — computed row array (mutable)
+- `$event->rows` — computed rows as **`PriceSchedule[]`** (mutable array of `wsydney76\priceadjuster\records\PriceSchedule` ActiveRecord instances)
 
-Each row contains:
-`variantId`, `title`, `sku`, `oldPrice`, `newPrice`, `oldPromotionalPrice`, `newPromotionalPrice`, `effectiveDate`, `ruleLabel`.
+Each `PriceSchedule` record exposes the following properties:
+`variantId`, `title`, `sku`, `oldPrice`, `newPrice`, `oldPromotionalPrice`, `newPromotionalPrice`, `effectiveDate`, `ruleName`, `ruleLabel`.
 
 Example listener (registered in your project bootstrap/module):
 
 ```php
 <?php
 
-use wsydney76\priceadjuster\console\controllers\SchedulerController;
 use wsydney76\priceadjuster\events\BuildRowsEvent;
+use wsydney76\priceadjuster\services\SchedulerService;
 use yii\base\Event;
 
 Event::on(
-    SchedulerController::class,
-    SchedulerController::EVENT_BUILD_ROWS,
+    SchedulerService::class,
+    SchedulerService::EVENT_BUILD_ROWS,
     static function (BuildRowsEvent $event): void {
-        // Example: remove rows where computed price did not actually change.
-        $event->rows = array_values(array_filter(
-            $event->rows,
-            static fn(array $row): bool => (float)$row['oldPrice'] !== (float)$row['newPrice']
-        ));
+        // Example: apply a tiered promotional discount based on the new price.
+        if ($event->ruleName === 'theRuleNameImInterestedIn') {
+            // Example: apply a tiered promotional discount based on the new price.
+            foreach ($event->rows as $row) {
+                $price = (float)$row->newPrice;
+                if ($price > 100) {
+                    $row->newPromotionalPrice = $price - 20;
+                } elseif ($price >= 50) {
+                    $row->newPromotionalPrice = $price - 10;
+                }
+            }
+        }
     }
 );
 ```
 
-Because rows are mutable, listeners can filter, re-order, or overwrite values before `buildRows()` returns.
+Because rows are mutable, listeners can filter, re-order, or modify `PriceSchedule` properties before `buildRows()` returns.
 
 ## CP Utility — Price Schedule
 Navigate to **Utilities → Price Schedule** in the Craft Control Panel.
