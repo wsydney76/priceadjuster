@@ -25,6 +25,7 @@ class SchedulerController extends Controller
     public ?string $date = null;
     public bool $resetPromotion = false;
     public bool $replace = false;
+    public bool $dryRun = false;
 
     public function options($actionID): array
     {
@@ -33,6 +34,7 @@ class SchedulerController extends Controller
             'date',
             'resetPromotion',
             'replace',
+            'dryRun',
         ]);
     }
 
@@ -108,6 +110,7 @@ class SchedulerController extends Controller
      *
      * Usage:
      * php craft _priceadjuster/scheduler/apply --date=2027-01-01
+     * php craft _priceadjuster/scheduler/apply --date=2027-01-01 --dry-run
      */
     public function actionApply(): int
     {
@@ -119,6 +122,10 @@ class SchedulerController extends Controller
             return ExitCode::USAGE;
         }
 
+        if ($this->dryRun) {
+            $this->stdout("[DRY RUN] No changes will be written to the database.\n", Console::FG_YELLOW);
+        }
+
         $handler = $this->onResult(function(SchedulerResultEvent $event): void {
             match ($event->status) {
                 'error'   => $this->outputError($event),
@@ -128,7 +135,7 @@ class SchedulerController extends Controller
             };
         });
 
-        $service->applyRecords($records, $this->resetPromotion, $this->rule);
+        $service->applyRecords($records, $this->resetPromotion, $this->rule, $this->dryRun);
         $service->off(SchedulerService::EVENT_RESULT, $handler);
 
         return ExitCode::OK;
@@ -147,6 +154,10 @@ class SchedulerController extends Controller
             return ExitCode::USAGE;
         }
 
+        if ($this->dryRun) {
+            $this->stdout("[DRY RUN] No changes will be written to the database.\n", Console::FG_YELLOW);
+        }
+
         $handler = $this->onResult(function(SchedulerResultEvent $event): void {
             match ($event->status) {
                 'error'   => $this->outputError($event),
@@ -156,7 +167,7 @@ class SchedulerController extends Controller
             };
         });
 
-        $service->rollbackRecords($records, $this->rule);
+        $service->rollbackRecords($records, $this->rule, $this->dryRun);
         $service->off(SchedulerService::EVENT_RESULT, $handler);
 
         return ExitCode::OK;

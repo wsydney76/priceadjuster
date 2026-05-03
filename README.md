@@ -377,6 +377,8 @@ Reads staged rows from the database and saves the new prices to Commerce variant
 craft _priceadjuster/scheduler/apply --date=2027-01-01
 # Apply all staged rows for a specific rule (regardless of date)
 craft _priceadjuster/scheduler/apply --rule=<name>
+# Preview what would be applied without touching the database
+craft _priceadjuster/scheduler/apply --date=2027-01-01 --dry-run=1
 ```
 **Options:**
 | Option | Description |
@@ -384,6 +386,7 @@ craft _priceadjuster/scheduler/apply --rule=<name>
 | `--date=YYYY-MM-DD` | Filter by effective date |
 | `--rule=<name>` | Filter by rule name |
 | `--reset-promotion` | Clear `basePromotionalPrice` on all applied variants |
+| `--dry-run=1` | Print what would be applied without writing any changes to the database or re-saving products |
 At least one of `--date` or `--rule` is required.
 
 ### `scheduler/rollback` — Roll back applied prices
@@ -391,7 +394,15 @@ Restores original prices for all rows that have been applied for the given date 
 ```bash
 craft _priceadjuster/scheduler/rollback --date=2027-01-01
 craft _priceadjuster/scheduler/rollback --rule=<name>
+# Preview what would be rolled back without touching the database
+craft _priceadjuster/scheduler/rollback --date=2027-01-01 --dry-run=1
 ```
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--date=YYYY-MM-DD` | Filter by effective date |
+| `--rule=<name>` | Filter by rule name |
+| `--dry-run=1` | Print what would be rolled back without writing any changes to the database or re-saving products |
 At least one of `--date` or `--rule` is required.
 
 ### `scheduler/delete` — Delete staged rows
@@ -481,8 +492,11 @@ craft _priceadjuster/export/index --date=2027-01-01
 craft _priceadjuster/import/index --date=2027-01-01 --dry-run=1
 craft _priceadjuster/import/index --date=2027-01-01
 # 6. Final review in CP: Utilities → Price Schedule
-# 7. Apply on the effective date
+# 7. Dry-run apply to confirm what will change
+craft _priceadjuster/scheduler/apply --date=2027-01-01 --dry-run=1
+# 8. Apply on the effective date
 craft _priceadjuster/scheduler/apply --date=2027-01-01
-# 8. Roll back if something went wrong
+# 9. Roll back if something went wrong (dry-run first if unsure)
+craft _priceadjuster/scheduler/rollback --date=2027-01-01 --dry-run=1
 craft _priceadjuster/scheduler/rollback --date=2027-01-01
 ```

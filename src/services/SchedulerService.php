@@ -191,9 +191,10 @@ class SchedulerService extends Component
      * @param  PriceSchedule[] $records
      * @param  bool            $resetPromotion  Force promotional price to null on apply
      * @param  string|null     $ruleName        Used for the log file name
+     * @param  bool            $dryRun          When true, only output messages without writing to the DB
      * @return array[]  Each item: status (applied|skipped|error), record, message
      */
-    public function applyRecords(array $records, bool $resetPromotion = false, ?string $ruleName = null): array
+    public function applyRecords(array $records, bool $resetPromotion = false, ?string $ruleName = null, bool $dryRun = false): array
     {
         $this->currentResults = [];
         $productIds = [];
@@ -208,6 +209,11 @@ class SchedulerService extends Component
             $newPrice = (float)$record->newPrice;
             if ($newPrice === 0.0) {
                 $this->addResult(['status' => 'skipped', 'record' => $record, 'message' => "newPrice is 0: {$record->sku}"]);
+                continue;
+            }
+
+            if ($dryRun) {
+                $this->addResult(['status' => 'applied', 'record' => $record, 'message' => '[DRY RUN] Would apply: ' . $record->getMessageString()]);
                 continue;
             }
 
@@ -237,11 +243,13 @@ class SchedulerService extends Component
             $productIds[$variant->ownerId] = true;
         }
 
-        if (PriceadjusterPlugin::getInstance()->getSettings()->resaveProducts) {
+        if (!$dryRun && PriceadjusterPlugin::getInstance()->getSettings()->resaveProducts) {
             $this->resaveProducts(array_keys($productIds));
         }
 
-        $this->writeLog($ruleName ?? 'unknown', 'apply', $this->currentResults);
+        if (!$dryRun) {
+            $this->writeLog($ruleName ?? 'unknown', 'apply', $this->currentResults);
+        }
 
         return $this->currentResults;
     }
@@ -251,9 +259,10 @@ class SchedulerService extends Component
      *
      * @param  PriceSchedule[] $records
      * @param  string|null     $ruleName  Used for the log file name
+     * @param  bool            $dryRun    When true, only output messages without writing to the DB
      * @return array[]  Each item: status (rolledBack|skipped|error), record, message
      */
-    public function rollbackRecords(array $records, ?string $ruleName = null): array
+    public function rollbackRecords(array $records, ?string $ruleName = null, bool $dryRun = false): array
     {
         $this->currentResults = [];
         $productIds = [];
@@ -268,6 +277,11 @@ class SchedulerService extends Component
             $oldPrice = (float)$record->oldPrice;
             if ($oldPrice === 0.0) {
                 $this->addResult(['status' => 'skipped', 'record' => $record, 'message' => "oldPrice is 0: {$record->sku}"]);
+                continue;
+            }
+
+            if ($dryRun) {
+                $this->addResult(['status' => 'rolledBack', 'record' => $record, 'message' => '[DRY RUN] Would roll back: ' . $record->getMessageString()]);
                 continue;
             }
 
@@ -296,11 +310,13 @@ class SchedulerService extends Component
             $productIds[$variant->ownerId] = true;
         }
 
-        if (PriceadjusterPlugin::getInstance()->getSettings()->resaveProducts) {
+        if (!$dryRun && PriceadjusterPlugin::getInstance()->getSettings()->resaveProducts) {
             $this->resaveProducts(array_keys($productIds));
         }
 
-        $this->writeLog($ruleName ?? 'unknown', 'rollback', $this->currentResults);
+        if (!$dryRun) {
+            $this->writeLog($ruleName ?? 'unknown', 'rollback', $this->currentResults);
+        }
 
         return $this->currentResults;
     }
