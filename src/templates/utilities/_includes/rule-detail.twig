@@ -55,6 +55,8 @@
                     <tbody>
                     {% for record in pending %}
                         {% set editUrl = productEditUrls[record.variantId] ?? null %}
+                        {% set history = record.updateHistoryDecoded %}
+                        {% set firstHistory = history|length > 0 ? history[0] : null %}
                         <input type="hidden" name="updates[{{ loop.index0 }}][id]" value="{{ record.id }}">
                         <tr data-record-id="{{ record.id }}">
                             <td class="thin"><input type="checkbox" class="ps-delete-cb" value="{{ record.id }}"></td>
@@ -77,6 +79,9 @@
                                         name="updates[{{ loop.index0 }}][newPrice]"
                                         value="{{ record.newPrice|number_format(2, '.', '') }}"
                                 >
+                                {% if firstHistory is not null and firstHistory.newPrice|number_format(2, '.', '') != record.newPrice|number_format(2, '.', '') %}
+                                    <br><small style="color:#999;">staged: {{ firstHistory.newPrice|number_format(2, '.', '') }}</small>
+                                {% endif %}
                             </td>
                             <td class="thin ps-nowrap-cell">{{ record.oldPromotionalPrice is not null ? record.oldPromotionalPrice|number_format(2, '.', '') : '—' }}</td>
                             <td class="thin">
@@ -89,6 +94,13 @@
                                         value="{{ record.newPromotionalPrice is not null ? record.newPromotionalPrice|number_format(2, '.', '') : '' }}"
                                         placeholder="—"
                                 >
+                                {% if firstHistory is not null %}
+                                    {% set histPromo = firstHistory.newPromotionalPrice %}
+                                    {% set recPromo = record.newPromotionalPrice %}
+                                    {% if histPromo|number_format(2, '.', '') != recPromo|number_format(2, '.', '') %}
+                                        <br><small style="color:#999;">staged: {{ histPromo is not null ? histPromo|number_format(2, '.', '') : '—' }}</small>
+                                    {% endif %}
+                                {% endif %}
                             </td>
                             <td><small>{{ record.ruleLabel }}</small></td>
                         </tr>

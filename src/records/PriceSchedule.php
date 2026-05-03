@@ -51,6 +51,21 @@ class PriceSchedule extends ActiveRecord
         );
     }
 
+    /**
+     * Returns the updateHistory as a decoded array (safe to call from Twig).
+     * The first entry contains the originally staged prices; subsequent entries are manual edits.
+     *
+     * @return array<int, array{userId: int|null, timestamp: string, newPrice: string|float|null, newPromotionalPrice: string|float|null}>
+     */
+    public function getUpdateHistoryDecoded(): array
+    {
+        $history = $this->updateHistory;
+        if (is_string($history)) {
+            $history = json_decode($history, true) ?? [];
+        }
+        return is_array($history) ? $history : [];
+    }
+
     public function beforeSave($insert): bool
     {
 
