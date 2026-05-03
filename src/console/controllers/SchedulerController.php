@@ -115,7 +115,7 @@ class SchedulerController extends Controller
     public function actionApply(): int
     {
         $service = PriceadjusterPlugin::getInstance()->scheduler;
-        $records = $service->getScheduleRecords(applied: false, date: $this->date, rule: $this->rule);
+        $records = $service->getScheduleRecords(applied: false, date: $this->resolveDate(), rule: $this->rule);
 
         if ($records === null) {
             $this->stderr("Either --date or --rule is required.\n", Console::FG_RED);
@@ -147,7 +147,7 @@ class SchedulerController extends Controller
     public function actionRollback(): int
     {
         $service = PriceadjusterPlugin::getInstance()->scheduler;
-        $records = $service->getScheduleRecords(applied: true, date: $this->date, rule: $this->rule);
+        $records = $service->getScheduleRecords(applied: true, date: $this->resolveDate(), rule: $this->rule);
 
         if ($records === null) {
             $this->stderr("Either --date or --rule is required.\n", Console::FG_RED);
@@ -224,6 +224,17 @@ class SchedulerController extends Controller
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Resolve the --date option, substituting 'today' with the current date (yyyy-mm-dd).
+     */
+    private function resolveDate(): ?string
+    {
+        if ($this->date === 'today') {
+            return date('Y-m-d');
+        }
+        return $this->date;
+    }
 
     /**
      * Register a one-shot EVENT_RESULT listener on the scheduler service.

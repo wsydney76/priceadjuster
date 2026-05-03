@@ -387,6 +387,7 @@ craft _priceadjuster/scheduler/apply --date=2027-01-01 --dry-run=1
 | Option | Description |
 |--------|-------------|
 | `--date=YYYY-MM-DD` | Filter by effective date |
+| `--date=today` | Use today's date (resolved at runtime to `YYYY-MM-DD`) |
 | `--rule=<name>` | Filter by rule name |
 | `--reset-promotion` | Clear `basePromotionalPrice` on all applied variants |
 | `--dry-run=1` | Print what would be applied without writing any changes to the database or re-saving products |
@@ -404,6 +405,7 @@ craft _priceadjuster/scheduler/rollback --date=2027-01-01 --dry-run=1
 | Option | Description |
 |--------|-------------|
 | `--date=YYYY-MM-DD` | Filter by effective date |
+| `--date=today` | Use today's date (resolved at runtime to `YYYY-MM-DD`) |
 | `--rule=<name>` | Filter by rule name |
 | `--dry-run=1` | Print what would be rolled back without writing any changes to the database or re-saving products |
 At least one of `--date` or `--rule` is required.
@@ -499,6 +501,8 @@ craft _priceadjuster/import/index --date=2027-01-01
 craft _priceadjuster/scheduler/apply --date=2027-01-01 --dry-run=1
 # 8. Apply on the effective date
 craft _priceadjuster/scheduler/apply --date=2027-01-01
+# or use --date=today when running on the effective date itself
+craft _priceadjuster/scheduler/apply --date=today
 # 9. Roll back if something went wrong (dry-run first if unsure)
 craft _priceadjuster/scheduler/rollback --date=2027-01-01 --dry-run=1
 craft _priceadjuster/scheduler/rollback --date=2027-01-01
