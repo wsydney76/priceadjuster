@@ -89,6 +89,7 @@ Each file contains a JSON **array** of rule entries. Multiple entries can share 
 | Key | Type | Required | Description |
 |-----|------|:--------:|-------------|
 | `effective_date` | `string` (YYYY-MM-DD) | ✓ | The date prices should take effect |
+| `label` | `string` | — | Human-readable label stored as `ruleLabel` in the database. Used in the CP utility and log output to identify the rule. Falls back to an auto-generated string if omitted. |
 | `criteria` | `object` | ✓ | Product query filters (any `Product::find()` method as key → value) |
 | `variantCriteria` | `object` | — | Additional variant query filters (any `Variant::find()` method) |
 | `priceAdjustment` | `object` | — | How to adjust `basePrice` (omit to leave price unchanged) |
@@ -326,6 +327,7 @@ return [
 [
   {
     "effective_date": "2027-01-01",
+    "label": "Spring 2027 — promo dresses & evening wear",
     "criteria": {
       "productCategory": "productCategory:mini-dresses,evening-dresses"
     },
@@ -336,6 +338,7 @@ return [
   },
   {
     "effective_date": "2027-02-01",
+    "label": "Spring 2027 — reset dresses & evening wear",
     "criteria": {
       "productCategory": "productCategory:mini-dresses,evening-dresses"
     },

@@ -40,9 +40,14 @@
     // ── Rule-detail: select-all toggle ───────────────────────────────────────
     document.querySelectorAll('.ps-select-all').forEach(function (toggle) {
         toggle.addEventListener('change', function () {
-            var table = toggle.closest('form');
-            table.querySelectorAll('.ps-delete-cb').forEach(function (cb) {
-                cb.checked = toggle.checked;
+            var form = toggle.closest('form');
+            form.querySelectorAll('.ps-delete-cb').forEach(function (cb) {
+                var row = cb.closest('tr');
+                if (toggle.checked) {
+                    cb.checked = !row || row.style.display !== 'none';
+                } else {
+                    cb.checked = false;
+                }
             });
         });
     });

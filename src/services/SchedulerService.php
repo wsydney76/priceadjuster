@@ -757,6 +757,10 @@ class SchedulerService extends Component
 
     private function buildRuleLabel(array $rule, int $index, string $ruleName): string
     {
+        if (!empty($rule['label'])) {
+            return $rule['label'];
+        }
+
         $effectiveDate = $rule['effective_date'] ?? '?';
         $adjustment    = $rule['priceAdjustment'] ?? [];
         $type          = $adjustment['type'] ?? '';
