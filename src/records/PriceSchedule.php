@@ -1,6 +1,9 @@
 <?php
 namespace wsydney76\priceadjuster\records;
+use Craft;
 use craft\db\ActiveRecord;
+use DateTime;
+use DateTimeZone;
 /**
  * @property int $id
  * @property int $variantId
@@ -16,6 +19,7 @@ use craft\db\ActiveRecord;
  * @property string|null $ruleSnapshot
  * @property string $effectiveDate
  * @property string|null $appliedAt
+ * @property array|null $updateHistory
  */
 class PriceSchedule extends ActiveRecord
 {
@@ -45,5 +49,30 @@ class PriceSchedule extends ActiveRecord
             $fmt($this->oldPromotionalPrice),
             $fmt($this->newPromotionalPrice),
         );
+    }
+
+    public function beforeSave($insert): bool
+    {
+
+            $userId = Craft::$app->getUser()->getId() ?? null;
+            $tz = Craft::$app->getTimeZone();
+            $timestamp = (new DateTime('now', new DateTimeZone($tz)))->format('Y-m-d H:i:s');
+
+            $history = $this->updateHistory ?? [];
+            if (is_string($history)) {
+                $history = json_decode($history, true) ?? [];
+            }
+
+            $history[] = [
+                'userId' => $userId,
+                'timestamp' => $timestamp,
+                'newPrice' => $this->newPrice,
+                'newPromotionalPrice' => $this->newPromotionalPrice,
+            ];
+
+            $this->updateHistory = $history;
+
+
+        return parent::beforeSave($insert);
     }
 }

@@ -12,6 +12,7 @@ class Install extends Migration
         }
         $this->createTable($table, [
             'id' => $this->primaryKey(),
+            'effectiveDate' => $this->date()->notNull(),
             'variantId' => $this->integer()->notNull(),
             'title' => $this->string()->notNull(),
             'sku' => $this->string(),
@@ -23,7 +24,7 @@ class Install extends Migration
             'ruleIndex' => $this->integer()->notNull(),
             'ruleLabel' => $this->string()->notNull(),
             'ruleSnapshot' => $this->text(),
-            'effectiveDate' => $this->date()->notNull(),
+            'updateHistory' => $this->json(),
             'appliedAt' => $this->dateTime()->null(),
             'dateCreated' => $this->dateTime()->notNull(),
             'dateUpdated' => $this->dateTime()->notNull(),
