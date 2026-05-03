@@ -68,9 +68,12 @@ class PriceadjusterPlugin extends Plugin
     }
     protected function settingsHtml(): ?string
     {
+        $configFileKeys = array_keys(Craft::$app->getConfig()->getConfigFromFile('_priceadjuster'));
+
         return Craft::$app->getView()->renderTemplate('_priceadjuster/settings.twig', [
             'plugin' => $this,
             'settings' => $this->getSettings(),
+            'configFileKeys' => $configFileKeys,
         ]);
     }
     // -------------------------------------------------------------------------

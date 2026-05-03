@@ -1,4 +1,7 @@
 {% import '_includes/forms.twig' as forms %}
+
+{% set configWarning = 'This setting is defined in the <code>config/_priceadjuster.php</code> config file and cannot be changed here.' | t('_priceadjuster') %}
+
 {{ forms.autosuggestField({
     label: 'Rules Directory' | t('_priceadjuster'),
     instructions: 'Directory containing rule JSON files. Supports Craft aliases (@root) and environment variables ($MY_VAR).' | t('_priceadjuster'),
@@ -7,7 +10,10 @@
     value: settings.rulesDirectory,
     suggestEnvVars: true,
     suggestAliases: true,
+    required: true,
     errors: settings.getErrors('rulesDirectory'),
+    disabled: 'rulesDirectory' in configFileKeys,
+    warning: 'rulesDirectory' in configFileKeys ? configWarning,
 }) }}
 {{ forms.autosuggestField({
     label: 'Export Directory' | t('_priceadjuster'),
@@ -17,7 +23,10 @@
     value: settings.exportDirectory,
     suggestEnvVars: true,
     suggestAliases: true,
+    required: true,
     errors: settings.getErrors('exportDirectory'),
+    disabled: 'exportDirectory' in configFileKeys,
+    warning: 'exportDirectory' in configFileKeys ? configWarning,
 }) }}
 {{ forms.autosuggestField({
     label: 'Import Directory' | t('_priceadjuster'),
@@ -27,7 +36,10 @@
     value: settings.importDirectory,
     suggestEnvVars: true,
     suggestAliases: true,
+    required: true,
     errors: settings.getErrors('importDirectory'),
+    disabled: 'importDirectory' in configFileKeys,
+    warning: 'importDirectory' in configFileKeys ? configWarning,
 }) }}
 {{ forms.autosuggestField({
     label: 'Log Directory' | t('_priceadjuster'),
@@ -37,7 +49,10 @@
     value: settings.logDirectory,
     suggestEnvVars: true,
     suggestAliases: true,
+    required: true,
     errors: settings.getErrors('logDirectory'),
+    disabled: 'logDirectory' in configFileKeys,
+    warning: 'logDirectory' in configFileKeys ? configWarning,
 }) }}
 {{ forms.lightswitchField({
     label: 'Re-save Products After Apply / Rollback' | t('_priceadjuster'),
@@ -45,4 +60,6 @@
     id: 'resaveProducts',
     name: 'resaveProducts',
     on: settings.resaveProducts,
+    disabled: 'resaveProducts' in configFileKeys,
+    warning: 'resaveProducts' in configFileKeys ? configWarning,
 }) }}
