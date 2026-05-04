@@ -38,48 +38,50 @@
                 <td class="thin" style="text-align:right;">{{ counts.total ?: '' }}</td>
                 <td class="thin" style="text-align:right;">{{ counts.applied ?: '' }}</td>
                 <td class="thin">{{ file.modified|date('Y-m-d H:i') }}</td>
-                <td class="thin" style="white-space:nowrap;">
-                    <a href="{{ cpUrl('utilities/price-schedule', {rule: file.name}) }}"
-                       class="btn small">View Schedule</a>
-                    <button type="button"
-                            class="btn small ps-stage-rule-btn"
-                            data-rule="{{ file.name }}"
-                            {% if file.parseError %}disabled title="File contains invalid JSON"{% endif %}>
-                        Stage
-                    </button>
-                    <button type="button"
-                            class="btn small ps-stage-rule-btn"
-                            data-rule="{{ file.name }}"
-                            data-replace="1"
-                            {% if file.parseError %}disabled title="File contains invalid JSON"{% endif %}>
-                        Stage+Replace
-                    </button>
-                    <button type="button"
-                            class="btn small ps-delete-rule-btn ps-btn-danger"
-                            data-rule="{{ file.name }}"
-                            data-total="all">
-                        Delete Records
-                    </button>
-                    <form method="post" style="display:inline;" onsubmit="
-                        var n = prompt('New file name (without .json):', '{{ file.name }}-copy');
-                        if (!n) return false;
-                        this.querySelector('[name=newFileName]').value = n.trim();
-                    ">
+                <td class="thin">
+                    {% set safeId = file.name|replace({'.': '-', ' ': '_'}) %}
+                    <button type="button" class="btn small menubtn">Actions</button>
+                    <div class="menu">
+                        <ul>
+                            <li><a href="{{ cpUrl('utilities/price-schedule', {rule: file.name}) }}">View Schedule</a></li>
+                        </ul>
+                        <hr>
+                        <ul>
+                            {% if not file.parseError %}
+                                <li><a href="javascript:;" class="ps-stage-rule-btn" data-rule="{{ file.name }}">Stage</a></li>
+                                <li><a href="javascript:;" class="ps-stage-rule-btn" data-rule="{{ file.name }}" data-replace="1">Stage + Replace</a></li>
+                            {% else %}
+                                <li><span class="menu-option disabled" title="File contains invalid JSON">Stage (invalid JSON)</span></li>
+                            {% endif %}
+                            <li><a href="javascript:;" onclick="
+                                var n = prompt('New file name (without .json):', '{{ file.name }}-copy');
+                                if (!n) return;
+                                var f = document.getElementById('dup-{{ safeId }}');
+                                f.querySelector('[name=newFileName]').value = n.trim();
+                                f.submit();
+                            ">Duplicate</a></li>
+                        </ul>
+                        <hr>
+                        <ul>
+                            <li><a href="javascript:;" class="error ps-delete-rule-btn" data-rule="{{ file.name }}" data-total="all">Delete Records</a></li>
+                            <li><a href="javascript:;" class="error" onclick="
+                                if (!confirm('Delete {{ file.name }}.json? This cannot be undone.')) return;
+                                document.getElementById('delfile-{{ safeId }}').submit();
+                            ">Delete File</a></li>
+                        </ul>
+                    </div>
+
+                    {# Hidden forms for POST-only actions #}
+                    <form id="dup-{{ safeId }}" method="post" style="display:none;">
                         {{ csrfInput() }}
                         {{ actionInput('_priceadjuster/rule-file/duplicate') }}
                         <input type="hidden" name="fileName" value="{{ file.name }}">
                         <input type="hidden" name="newFileName" value="">
-                        <button type="submit" class="btn small">Duplicate</button>
                     </form>
-                    <form method="post" style="display:inline;">
+                    <form id="delfile-{{ safeId }}" method="post" style="display:none;">
                         {{ csrfInput() }}
                         {{ actionInput('_priceadjuster/rule-file/delete') }}
                         <input type="hidden" name="fileName" value="{{ file.name }}">
-                        <button type="submit"
-                                class="btn small ps-btn-danger"
-                                onclick="return confirm('Delete {{ file.name }}.json? This cannot be undone.')">
-                            Delete File
-                        </button>
                     </form>
                 </td>
             </tr>
