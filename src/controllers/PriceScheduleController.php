@@ -26,12 +26,21 @@ class PriceScheduleController extends Controller
         $updates = Craft::$app->getRequest()->getRequiredBodyParam('updates');
         $result  = PriceadjusterPlugin::getInstance()->scheduler->batchUpdateRecords($updates);
 
-        return $this->buildResponse(
-            saved: $result['saved'],
-            errors: $result['errors'],
-            zeroMessage: 'No prices changed.',
-            successMessage: Craft::t('app', '{n,plural,=1{1 price changed}other{# prices changed}}.', ['n' => $result['saved']]),
-        );
+        $saved      = $result['saved'];
+        $errors     = $result['errors']; // keyed by record ID
+
+        if (!empty($errors)) {
+            $errorCount = count($errors);
+            $message = $saved > 0
+                ? Craft::t('site', '{n,plural,=1{1 price}other{# prices}} changed, {e,plural,=1{1 error}other{# errors}}.', ['n' => $saved, 'e' => $errorCount])
+                : Craft::t('site', '{e,plural,=1{1 error}other{# errors}}.', ['e' => $errorCount]);
+            return $this->asFailure($message, ['errors' => $errors]);
+        }
+
+        $message = $saved === 0
+            ? 'No prices changed.'
+            : Craft::t('app', '{n,plural,=1{1 price changed}other{# prices changed}}.', ['n' => $saved]);
+        return $this->asSuccess($message);
     }
 
     /**

@@ -502,6 +502,87 @@ Event::on(
 
 Because rows are mutable, listeners can filter, re-order, or modify `PriceSchedule` properties before `buildRows()` returns.
 
+## Validation
+
+Every `PriceSchedule` record is validated before it is written to the database (during `stage`, `batchUpdate`) and also during a `--dry-run` of `apply` or `rollback`. Validation failures are surfaced as structured errors so they can be displayed next to the affected row in the CP or printed line-by-line in the console.
+
+### Built-in rules
+
+The following rules are always enforced on every `PriceSchedule` record, regardless of the rule file:
+
+| Field | Rule | Why |
+|-------|------|-----|
+| `variantId`, `oldPrice`, `newPrice`, `effectiveDate`, `ruleName` | required | Guards against incomplete records produced by programmatic callers |
+| `oldPrice`, `newPrice` | number, min `0.01` | Catches zero, negative, or non-numeric values that would corrupt variant prices |
+| `newPromotionalPrice` *(when set)* | number, min `0.01` | Same protection for the promotional price field |
+| `newPromotionalPrice` *(when set)* | must be **less than** `newPrice` | A promotional price equal to or higher than the regular price is almost always a data-entry mistake |
+| `effectiveDate` | valid calendar date, format `YYYY-MM-DD` | Rejects malformed strings that slipped past the rule-file loader |
+
+### Custom validation via `EVENT_BEFORE_VALIDATE`
+
+You can attach additional rules — e.g. per-rule price caps or plausibility checks — by listening to the Yii2 `EVENT_BEFORE_VALIDATE` event on `PriceSchedule`. Add errors directly to the record; the plugin will treat any record with errors as a validation failure.
+
+**Event:**
+- Class: `wsydney76\priceadjuster\records\PriceSchedule`
+- Name: `PriceSchedule::EVENT_BEFORE_VALIDATE`
+
+**Example — guard against accidental decimal-point and near-zero mistakes for a specific rule:**
+
+```php
+use wsydney76\priceadjuster\records\PriceSchedule;
+use yii\base\Event;
+
+Event::on(
+    PriceSchedule::class,
+    PriceSchedule::EVENT_BEFORE_VALIDATE,
+    function (Event $event): void {
+        /** @var PriceSchedule $record */
+        $record = $event->sender;
+
+        // Apply custom checks only to the rule you care about.
+        if ($record->ruleName !== 'my-rule') {
+            return;
+        }
+
+        $newPrice = (float)$record->newPrice;
+        $oldPrice = (float)$record->oldPrice;
+
+        // Catch a suspiciously large price increase (> 50 % above old price).
+        if ($oldPrice > 0 && $newPrice > $oldPrice * 1.5) {
+            $record->addError('newPrice', sprintf(
+                'New price %.2f is more than 50%% above the original price %.2f — please double-check.',
+                $newPrice, $oldPrice
+            ));
+        }
+
+        // Catch a suspiciously steep discount (> 70 % off old price).
+        if ($oldPrice > 0 && $newPrice < $oldPrice * 0.3) {
+            $record->addError('newPrice', sprintf(
+                'New price %.2f is more than 70%% below the original price %.2f — please double-check.',
+                $newPrice, $oldPrice
+            ));
+        }
+    }
+);
+```
+
+> **Tip:** Register the listener in your module's `attachEventHandlers()` method so it is active for both console and CP requests.
+
+### Validation in dry-run mode
+
+When `--dry-run=1` is passed to `scheduler/apply` or `scheduler/rollback`, the service calls `validate()` on each record **before** any price is written. Records that fail validation are reported as errors (with field-level messages) rather than being silently skipped. This lets you catch configuration mistakes with zero risk before the effective date arrives.
+
+```bash
+# Stage first, then validate everything in a safe dry-run
+craft _priceadjuster/scheduler/apply --date=2027-01-01 --dry-run=1
+```
+
+Console output for a validation failure:
+```
+ERROR [Floral Midi Dress - Red / FMD-RED-M]: [DRY RUN] Validation failed: my-rule #0 | …
+  · newPrice: New price 399.95 is more than 50% above the original price 249.95 — please double-check.
+```
+
 ## CP Utility — Price Schedule
 Navigate to **Utilities → Price Schedule** in the Craft Control Panel.
 ### Rule Index

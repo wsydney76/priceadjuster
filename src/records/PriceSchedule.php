@@ -29,6 +29,39 @@ class PriceSchedule extends ActiveRecord
     }
 
     /**
+     * Built-in validation rules — catch obvious data problems before any write.
+     *
+     * Custom business rules (e.g. per-rule price caps) belong in an
+     * EVENT_BEFORE_VALIDATE listener attached to this class.
+     */
+    public function rules(): array
+    {
+        return [
+            // Required fields
+            [['variantId', 'oldPrice', 'newPrice', 'effectiveDate', 'ruleName'], 'required'],
+
+            // Price fields must be positive numbers
+            [['oldPrice', 'newPrice'], 'number', 'min' => 0.01,
+                'message' => '{attribute} must be a positive number.'],
+
+            // Promotional price, when set, must be positive and strictly less than newPrice
+            ['newPromotionalPrice', 'number', 'min' => 0.01,
+                'when'    => fn($model) => $model->newPromotionalPrice !== null,
+                'message' => 'New promotional price must be a positive number.'],
+            ['newPromotionalPrice', 'compare',
+                'compareAttribute' => 'newPrice',
+                'operator'         => '<',
+                'type'             => 'number',
+                'when'             => fn($model) => $model->newPromotionalPrice !== null,
+                'message'          => 'New promotional price must be lower than the new price.'],
+
+            // effectiveDate must be a valid calendar date in yyyy-mm-dd format
+            ['effectiveDate', 'date', 'format' => 'php:Y-m-d',
+                'message' => 'Effective date must be a valid date in yyyy-mm-dd format.'],
+        ];
+    }
+
+    /**
      * Return a human-readable message string for this record.
      *
      * Format: RuleName | date | Title | SKU | oldPrice -> newPrice [| oldPromo -> newPromo]

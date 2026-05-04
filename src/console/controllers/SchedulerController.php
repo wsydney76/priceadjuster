@@ -257,9 +257,24 @@ class SchedulerController extends Controller
 
     private function outputError(SchedulerResultEvent $event): void
     {
-        $this->stderr("{$event->message}\n", Console::FG_RED);
-        if (!empty($event->result['errors'])) {
-            print_r($event->result['errors']);
+        $record = $event->result['record'] ?? null;
+
+        // Prepend title + SKU when the message doesn't already contain full record context.
+        $context = '';
+        if ($record instanceof PriceSchedule && $record->title) {
+            $context = " [{$record->title}" . ($record->sku ? " / {$record->sku}" : '') . ']';
+        }
+
+        $this->stderr("ERROR{$context}: {$event->message}\n", Console::FG_RED);
+
+        // Format Yii2 validation errors ['field' => ['msg', ...]] as readable lines.
+        $errors = $event->result['errors'] ?? [];
+        if (!empty($errors)) {
+            foreach ($errors as $field => $messages) {
+                foreach ((array)$messages as $msg) {
+                    $this->stderr("  · {$field}: {$msg}\n", Console::FG_RED);
+                }
+            }
         }
     }
 }

@@ -193,3 +193,17 @@
     opacity: .7;
 }
 
+/* ── Inline row errors (batch-update) ── */
+
+tr.ps-row-has-error {
+    background-color: var(--red-050, #fff5f5);
+}
+
+tr.ps-error-row > td.ps-error-cell {
+    background-color: var(--red-050, #fff5f5);
+    color: var(--red-600);
+    font-size: .8rem;
+    padding: .2rem .75rem .5rem;
+    border-top: none;
+}
+

@@ -61,12 +61,39 @@
             var btn = form.querySelector('button[type=submit]');
             btn.classList.add('loading');
             btn.disabled = true;
+
+            // Clear previous inline row errors
+            form.querySelectorAll('tr.ps-error-row').forEach(function (el) { el.remove(); });
+            form.querySelectorAll('tr.ps-row-has-error').forEach(function (tr) { tr.classList.remove('ps-row-has-error'); });
+
             Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/batch-update', {data: new FormData(form)})
                 .then(function (r) {
                     reloadPage(r.data.message || 'Saved.');
                 })
                 .catch(function (e) {
-                    Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'An error occurred.');
+                    var data = e.response && e.response.data;
+                    var errors = data && data.errors;
+                    if (errors && typeof errors === 'object' && Object.keys(errors).length) {
+                        // Show summary notice
+                        Craft.cp.displayError(data.message || 'Some records could not be saved.');
+                        // Display individual errors next to each row
+                        Object.keys(errors).forEach(function (id) {
+                            var row = form.querySelector('tr[data-record-id="' + id + '"]');
+                            if (!row) { return; }
+                            row.classList.add('ps-row-has-error');
+                            var colCount = row.querySelectorAll('td').length;
+                            var errorRow = document.createElement('tr');
+                            errorRow.className = 'ps-error-row';
+                            var td = document.createElement('td');
+                            td.colSpan = colCount;
+                            td.className = 'ps-error-cell';
+                            td.textContent = errors[id];
+                            errorRow.appendChild(td);
+                            row.insertAdjacentElement('afterend', errorRow);
+                        });
+                    } else {
+                        Craft.cp.displayError((data && data.message) || 'An error occurred.');
+                    }
                 })
                 .finally(function () {
                     btn.classList.remove('loading');

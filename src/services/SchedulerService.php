@@ -217,7 +217,16 @@ class SchedulerService extends Component
             }
 
             if ($dryRun) {
-                $this->addResult(['status' => 'applied', 'record' => $record, 'message' => '[DRY RUN] Would apply: ' . $record->getMessageString()]);
+                if (!$record->validate()) {
+                    $this->addResult([
+                        'status'  => 'error',
+                        'record'  => $record,
+                        'message' => '[DRY RUN] Validation failed: ' . $record->getMessageString(),
+                        'errors'  => $record->getErrors(),
+                    ]);
+                } else {
+                    $this->addResult(['status' => 'applied', 'record' => $record, 'message' => '[DRY RUN] Would apply: ' . $record->getMessageString()]);
+                }
                 continue;
             }
 
@@ -237,7 +246,7 @@ class SchedulerService extends Component
                 $this->addResult([
                     'status'  => 'error',
                     'record'  => $record,
-                    'message' => "Price applied but failed marking schedule row: {$record->id}",
+                    'message' => "Validation failed: {$record->title}",
                     'errors'  => $record->getErrors(),
                 ]);
                 continue;
@@ -285,7 +294,16 @@ class SchedulerService extends Component
             }
 
             if ($dryRun) {
-                $this->addResult(['status' => 'rolledBack', 'record' => $record, 'message' => '[DRY RUN] Would roll back: ' . $record->getMessageString()]);
+                if (!$record->validate()) {
+                    $this->addResult([
+                        'status'  => 'error',
+                        'record'  => $record,
+                        'message' => '[DRY RUN] Validation failed: ' . $record->getMessageString(),
+                        'errors'  => $record->getErrors(),
+                    ]);
+                } else {
+                    $this->addResult(['status' => 'rolledBack', 'record' => $record, 'message' => '[DRY RUN] Would roll back: ' . $record->getMessageString()]);
+                }
                 continue;
             }
 
@@ -334,7 +352,7 @@ class SchedulerService extends Component
     public function batchUpdateRecords(array $updates): array
     {
         $saved  = 0;
-        $errors = [];
+        $errors = []; // keyed by record ID
 
         foreach ($updates as $update) {
             $id       = (int)($update['id'] ?? 0);
@@ -352,7 +370,7 @@ class SchedulerService extends Component
             /** @var PriceSchedule|null $record */
             $record = PriceSchedule::findOne($id);
             if (!$record) {
-                $errors[] = "Record #{$id} not found.";
+                $errors[$id] = "Record #{$id} not found.";
                 continue;
             }
 
@@ -372,7 +390,7 @@ class SchedulerService extends Component
             if ($record->save()) {
                 $saved++;
             } else {
-                $errors[] = "Failed saving record #{$id}: " . implode(', ', $record->getFirstErrors());
+                $errors[$id] = 'Failed saving: ' . implode(', ', $record->getFirstErrors());
             }
         }
 
