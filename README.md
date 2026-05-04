@@ -687,6 +687,61 @@ ERROR [Floral Midi Dress - Red / FMD-RED-M]: [DRY RUN] Validation failed: my-rul
   · newPrice: New price 399.95 is more than 50% above the original price 249.95 — please double-check.
 ```
 
+## CP Utility — Price Rule Files
+Navigate to **Utilities → Price Rule Files** in the Craft Control Panel.
+
+This utility lets you create, view, edit, duplicate, and delete the JSON rule files that drive the price-adjuster scheduler — all without leaving the CP or touching the filesystem directly.
+
+### Rule File List
+The landing page shows a table of every `.json` file found in the configured `rulesDirectory`.
+
+| Column | Description |
+|--------|-------------|
+| **File** | Filename (without `.json`); click to open the editor |
+| **Entries** | Number of rule entries inside the file |
+| **DB Records** | Total staged/applied schedule records in the database for this rule |
+| **Applied** | How many of those DB records have already been applied |
+| **Last Modified** | File modification timestamp |
+
+#### Row actions
+
+| Button | Description |
+|--------|-------------|
+| **View Schedule** | Opens the **Price Schedule** utility pre-filtered to this rule's DB records |
+| **Stage** | Runs `buildRows()` + `stageRows()` for this rule — identical to `craft _priceadjuster/scheduler/stage --rule=<name>`. Existing pending rows for the same variant + date are updated or skipped; applied rows are never touched. |
+| **Stage + Replace** | Same as above but first deletes all existing *pending* records for this rule before inserting the newly computed rows — identical to `--replace`. A confirmation dialog is shown before proceeding. |
+| **Delete Records** | Deletes **all** schedule records (pending and applied) for this rule from the database. A confirmation dialog is shown before proceeding. |
+| **Duplicate** | Prompts for a new filename and copies the file to that name. |
+| **Delete File** | Deletes the `.json` file from disk after a confirmation dialog. Does **not** delete any database records. |
+
+> **Note:** Files with invalid JSON have **Stage** and **Stage + Replace** disabled. A parse-error indicator (⊗) is shown next to the filename.
+
+### Rule File Editor
+Click any filename (or **+ Create New Rule File**) to open the editor.
+
+#### Creating a new file
+Enter a filename (letters, digits, hyphens, underscores, dots — no `.json` extension). Click **+ Add rule entry** to add one or more rule entries, then **Save Rule File**.
+
+#### Editing an existing file
+Each rule entry is shown as a card with the following fields:
+
+| Field | Description |
+|-------|-------------|
+| **Effective Date** *(required)* | `YYYY-MM-DD` — the date prices should take effect |
+| **Label** | Human-readable description stored as `ruleLabel` in the database |
+| **Action** | Leave empty for a normal price rule, or select `Ignore` to exclude matching variants from earlier rules on the same date |
+| **Criteria** | JSON object of `Product::find()` filters (e.g. `{"productCategory": 123}`). Supports the `section:slug1,slug2` shorthand for Entry relation fields. |
+| **Variant Criteria** | JSON object of additional `Variant::find()` filters (e.g. `{"color": 456}`) |
+| **Price Adjustment** | Select a type (`Percentage`, `Amount`, `Reset`, `Callback`) and enter a value where applicable |
+| **Promotional Price Adjustment** | Same controls for `basePromotionalPrice` |
+| **Friendly Price Strategy** | Per-entry rounding override (`x.95`, `x.99`, `x.90`, `round`, `ceil`, `floor`, `exact`, or a `Class::method` string). Leave empty to use the project default. |
+
+Use the **▲ / ▼** buttons to reorder entries (last matching entry for a variant + date wins). Click **Remove** to delete an entry. Click **Save Rule File** to persist the changes to disk.
+
+A collapsible **Friendly-price strategy reference** table is shown below the form for quick lookup.
+
+> **Tip:** The criteria fields use a JSON code editor with syntax highlighting. Paste valid JSON — an error indicator appears if the value cannot be parsed when the file is saved.
+
 ## CP Utility — Price Schedule
 Navigate to **Utilities → Price Schedule** in the Craft Control Panel.
 ### Rule Index
