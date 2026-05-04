@@ -316,13 +316,13 @@ return [
   }
 ]
 ```
-**Set a promotional price (−10%) for specific variants by color, without touching the base price:**
+**Set a promotional price (−10%) for specific variants by color, if promotable, without touching the base price:**
 ```json
 [
   {
     "effective_date": "2027-01-01",
     "criteria": { "id": [19827, 21153] },
-    "variantCriteria": { "color": 19846 },
+    "variantCriteria": { "color": 19846, "andWhere": {"promotable":  1} },
     "promotionalPriceAdjustment": { "type": "percentage", "value": -10 }
   }
 ]
