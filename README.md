@@ -92,6 +92,7 @@ Each file contains a JSON **array** of rule entries. Multiple entries can share 
 | `label` | `string` | — | Human-readable label stored as `ruleLabel` in the database. Used in the CP utility and log output to identify the rule. Falls back to an auto-generated string if omitted. |
 | `criteria` | `object` | ✓ | Product query filters (any `Product::find()` method as key → value) |
 | `variantCriteria` | `object` | — | Additional variant query filters (any `Variant::find()` method) |
+| `action` | `string` | — | Special rule action. Currently the only supported value is `"ignore"` — see [Ignoring Specific Variants](#ignoring-specific-variants-action-ignore). |
 | `priceAdjustment` | `object` | — | How to adjust `basePrice` (omit to leave price unchanged) |
 | `promotionalPriceAdjustment` | `object` | — | How to adjust `basePromotionalPrice` (omit to leave promotional price unchanged) |
 
@@ -353,6 +354,60 @@ return [
 ]
 ```
 > **Note:** Multiple entries in one file can target the same `effective_date`. If the same variant appears in more than one entry for the same date, the **last entry wins**.
+
+### Ignoring Specific Variants — `action: "ignore"`
+
+An entry with `"action": "ignore"` does **not** add rows. Instead it removes rows that were already accumulated by earlier entries in the same file, for the matching `criteria` / `variantCriteria` and `effective_date`.
+
+This is useful when a broad rule should apply to an entire category, but a small subset of products needs to be excluded.
+
+**How it works:**
+1. All preceding rule entries run as normal, populating the row map.
+2. When an `"ignore"` entry is reached, its `criteria` and `variantCriteria` are resolved to variants.
+3. Any row already accumulated in the map for those variants on the same `effective_date` is removed.
+4. No new row is added.
+
+**Example — apply a promo to a whole category, then exclude products whose title contains "AAA":**
+
+```json
+[
+  {
+    "effective_date": "2027-01-01",
+    "criteria": {
+      "productCategory": "productCategory:mini-dresses,evening-dresses"
+    },
+    "promotionalPriceAdjustment": {
+      "type": "percentage",
+      "value": -10
+    }
+  },
+  {
+    "effective_date": "2027-02-01",
+    "criteria": {
+      "productCategory": "productCategory:mini-dresses,evening-dresses"
+    },
+    "promotionalPriceAdjustment": {
+      "type": "reset"
+    }
+  },
+  {
+    "effective_date": "2027-01-01",
+    "criteria": {
+      "search": "title:AAA"
+    },
+    "action": "ignore"
+  }
+]
+```
+
+In this example:
+- Rule 1 stages a −10 % promotional price for all mini-dresses and evening dresses on `2027-01-01`.
+- Rule 2 stages a promo reset on `2027-02-01`.
+- Rule 3 removes any `2027-01-01` rows for variants whose product title contains "AAA" — those products are excluded from the promotion entirely.
+
+> **Note:** `action: "ignore"` only removes rows for the **same `effective_date`** as the ignore entry. To exclude variants from multiple dates, add one ignore entry per date.
+
+> **Note:** `priceAdjustment`, `promotionalPriceAdjustment`, and `friendlyPriceStrategy` keys are ignored when `action: "ignore"` is set.
 
 ## CLI Commands
 All commands use the plugin handle prefix `_priceadjuster`.

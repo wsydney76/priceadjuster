@@ -64,6 +64,17 @@ class SchedulerService extends Component
             $promotionalAdj    = $ruleData['promotionalPriceAdjustment'] ?? null;
             $ruleLabel         = $this->buildRuleLabel($ruleData, $index, $rule);
             $strategy          = $ruleData['friendlyPriceStrategy'] ?? null;
+            $action            = $ruleData['action'] ?? null;
+
+            // "ignore" action: remove any rows already accumulated for matching variants/date.
+            if ($action === 'ignore') {
+                $variants = $this->getVariantsForCriteria($criteria, $variantCriteria);
+                foreach ($variants as $variant) {
+                    $key = $variant->id . ':' . $effectiveDate;
+                    unset($rowMap[$key]);
+                }
+                continue;
+            }
 
             $variants = $this->getVariantsForCriteria($criteria, $variantCriteria);
 
