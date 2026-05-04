@@ -10,7 +10,7 @@ use yii\web\Response;
 
 /**
  * Handles create / update / delete of JSON rule files on disk.
- * Action routes: _priceadjuster/rule-file/save, _priceadjuster/rule-file/delete
+ * Action routes: _priceadjuster/rule-file/save, _priceadjuster/rule-file/duplicate, _priceadjuster/rule-file/delete
  */
 class RuleFileController extends Controller
 {
@@ -154,6 +154,53 @@ class RuleFileController extends Controller
         }
 
         return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files', ['file' => $fileName]));
+    }
+
+    /**
+     * Duplicate a rule JSON file under a new name.
+     *
+     * POST body:
+     *   fileName    — source bare name without .json (required)
+     *   newFileName — destination bare name without .json (required)
+     */
+    public function actionDuplicate(): Response
+    {
+        $this->requireCpRequest();
+        $this->requirePermission('utility:price-rule-files');
+        $this->requirePostRequest();
+
+        $request     = Craft::$app->getRequest();
+        $fileName    = trim((string)$request->getRequiredBodyParam('fileName'));
+        $newFileName = trim((string)$request->getRequiredBodyParam('newFileName'));
+
+        foreach ([$fileName, $newFileName] as $name) {
+            if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-.]+$/', $name)) {
+                Craft::$app->getSession()->setError('Invalid file name. Use only letters, digits, hyphens, underscores, and dots.');
+                return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files'));
+            }
+        }
+
+        $rulesDir   = PriceadjusterPlugin::getInstance()->getRulesDirectory();
+        $sourcePath = $rulesDir . '/' . $fileName . '.json';
+        $destPath   = $rulesDir . '/' . $newFileName . '.json';
+
+        if (!file_exists($sourcePath)) {
+            Craft::$app->getSession()->setError("Source file not found: {$fileName}.json");
+            return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files'));
+        }
+
+        if (file_exists($destPath)) {
+            Craft::$app->getSession()->setError("A rule file named '{$newFileName}.json' already exists.");
+            return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files'));
+        }
+
+        if (!copy($sourcePath, $destPath)) {
+            Craft::$app->getSession()->setError("Failed to duplicate file to '{$newFileName}.json'.");
+            return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files'));
+        }
+
+        Craft::$app->getSession()->setNotice("Rule file duplicated as '{$newFileName}.json'.");
+        return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files', ['file' => $newFileName]));
     }
 
     /**

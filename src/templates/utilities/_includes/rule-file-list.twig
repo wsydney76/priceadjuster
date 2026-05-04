@@ -34,6 +34,17 @@
                 <td class="thin" style="text-align:right;">{{ file.entryCount }}</td>
                 <td class="thin">{{ file.modified|date('Y-m-d H:i') }}</td>
                 <td class="thin">
+                    <form method="post" style="display:inline;" onsubmit="
+                        var n = prompt('New file name (without .json):', '{{ file.name }}-copy');
+                        if (!n) return false;
+                        this.querySelector('[name=newFileName]').value = n.trim();
+                    ">
+                        {{ csrfInput() }}
+                        {{ actionInput('_priceadjuster/rule-file/duplicate') }}
+                        <input type="hidden" name="fileName" value="{{ file.name }}">
+                        <input type="hidden" name="newFileName" value="">
+                        <button type="submit" class="btn small">Duplicate</button>
+                    </form>
                     <form method="post" style="display:inline;">
                         {{ csrfInput() }}
                         {{ actionInput('_priceadjuster/rule-file/delete') }}
