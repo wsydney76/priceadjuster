@@ -18,9 +18,13 @@
 {% macro ruleEntry(index, row) %}
     {% import _self as self %}
     <div class="rf-entry">
-    <div class="rf-entry-header">
+    <div class="rf-entry-header" style="cursor:pointer;" title="Click to collapse / expand">
         <span class="rf-entry-num">#{{ index != '__IDX__' ? index + 1 : '' }}</span>
-        <div class="rf-entry-controls">
+        <span class="rf-entry-summary light" style="flex:1; margin: 0 0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            <span class="rf-summary-date">{{ row.effective_date ?? '' }}</span>{% if row.label ?? '' %}<span class="rf-summary-sep"> — </span><span class="rf-summary-label">{{ row.label }}</span>{% endif %}
+        </span>
+        <div class="rf-entry-controls" onclick="event.stopPropagation()">
+            <button type="button" class="btn small rf-collapse-btn" title="Collapse / expand" style="min-width:1.75rem;">▾</button>
             <button type="button" class="btn small rf-up-btn" title="Move up">▲</button>
             <button type="button" class="btn small rf-down-btn" title="Move down">▼</button>
             <button type="button" class="btn small ps-btn-danger rf-delete-btn">Remove</button>
@@ -250,88 +254,153 @@
 </div>
 
 {# ── JS ── #}
+{% css %}
+.rf-entry--collapsed .rf-entry-body { display: none; }
+.rf-entry--collapsed .rf-collapse-btn { transform: rotate(-90deg); }
+.rf-collapse-btn { transition: transform 0.15s ease; }
+{% endcss %}
+
 {% js %}
 (function() {
     'use strict';
 
     var container = document.getElementById('rf-container');
-    var template = document.getElementById('rf-entry-tpl');
-    var addBtn = document.getElementById('rf-add-btn');
-    if (!container || !template || !addBtn) {
-        return;
-    }
+    var template  = document.getElementById('rf-entry-tpl');
+    var addBtn    = document.getElementById('rf-add-btn');
+    if (!container || !template || !addBtn) { return; }
 
     var idx = parseInt(container.dataset.nextIndex || '0', 10);
 
-    function setupEntry(entry) {
-        var del = entry.querySelector('.rf-delete-btn');
-        var up = entry.querySelector('.rf-up-btn');
-        var down = entry.querySelector('.rf-down-btn');
+    // ── Collapse helpers ─────────────────────────────────────────────────────
+    function collapseEntry(entry) {
+        entry.classList.add('rf-entry--collapsed');
+    }
+    function expandEntry(entry) {
+        entry.classList.remove('rf-entry--collapsed');
+    }
+    function toggleEntry(entry) {
+        entry.classList.toggle('rf-entry--collapsed');
+    }
+
+    // ── Live summary update ──────────────────────────────────────────────────
+    function updateSummary(entry) {
+        var dateEl  = entry.querySelector('.rf-summary-date');
+        var sepEl   = entry.querySelector('.rf-summary-sep');
+        var labelEl = entry.querySelector('.rf-summary-label');
+        var dateIn  = entry.querySelector('input[name$="[effective_date]"]');
+        var labelIn = entry.querySelector('input[name$="[label]"]');
+        if (!dateEl) { return; }
+        if (dateIn)  { dateEl.textContent  = dateIn.value; }
+        var lv = labelIn ? labelIn.value : '';
+        if (labelEl) { labelEl.textContent = lv; }
+        if (sepEl)   { sepEl.style.display = lv ? '' : 'none'; }
+    }
+
+    // ── Per-entry wiring ─────────────────────────────────────────────────────
+    function setupEntry(entry, startExpanded) {
+        var header      = entry.querySelector('.rf-entry-header');
+        var collapseBtn = entry.querySelector('.rf-collapse-btn');
+        var del         = entry.querySelector('.rf-delete-btn');
+        var up          = entry.querySelector('.rf-up-btn');
+        var down        = entry.querySelector('.rf-down-btn');
+        var dateIn      = entry.querySelector('input[name$="[effective_date]"]');
+        var labelIn     = entry.querySelector('input[name$="[label]"]');
+
+        if (!startExpanded) { collapseEntry(entry); }
+
+        if (header) {
+            header.addEventListener('click', function() { toggleEntry(entry); });
+        }
+
+        // collapse button is inside stopPropagation zone — needs its own handler
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleEntry(entry);
+            });
+        }
 
         if (del) {
-            del.addEventListener('click', function() {
-                entry.remove();
-                renumber();
-            });
+            del.addEventListener('click', function() { entry.remove(); renumber(); });
         }
         if (up) {
             up.addEventListener('click', function() {
                 var p = entry.previousElementSibling;
-                if (p) {
-                    container.insertBefore(entry, p);
-                    renumber();
-                }
+                if (p) { container.insertBefore(entry, p); renumber(); }
             });
         }
         if (down) {
             down.addEventListener('click', function() {
                 var n = entry.nextElementSibling;
-                if (n) {
-                    container.insertBefore(n, entry);
-                    renumber();
-                }
+                if (n) { container.insertBefore(n, entry); renumber(); }
             });
         }
+
+        // keep summary in sync while editing
+        if (dateIn)  { dateIn.addEventListener('input',  function() { updateSummary(entry); }); }
+        if (labelIn) { labelIn.addEventListener('input', function() { updateSummary(entry); }); }
+
+        updateSummary(entry);
     }
 
+    // ── Renumber ─────────────────────────────────────────────────────────────
     function renumber() {
-        var hint = document.getElementById('rf-empty-hint');
+        var hint    = document.getElementById('rf-empty-hint');
         var entries = container.querySelectorAll('.rf-entry');
 
-        if (hint) {
-            hint.style.display = entries.length ? 'none' : '';
-        }
+        if (hint) { hint.style.display = entries.length ? 'none' : ''; }
 
         entries.forEach(function(entry, i) {
             var num = entry.querySelector('.rf-entry-num');
-            if (num) {
-                num.textContent = '#' + (i + 1);
-            }
-
+            if (num) { num.textContent = '#' + (i + 1); }
             entry.querySelectorAll('[name^="rules["]').forEach(function(el) {
                 el.name = el.name.replace(/^rules\[\d+\]/, 'rules[' + i + ']');
             });
         });
     }
 
+    // ── Add new entry (starts expanded) ──────────────────────────────────────
     addBtn.addEventListener('click', function() {
-        var html = template.innerHTML.replace(/rules\[__IDX__\]/g, 'rules[' + idx + ']');
+        var html    = template.innerHTML.replace(/rules\[__IDX__\]/g, 'rules[' + idx + ']');
         var wrapper = document.createElement('div');
         wrapper.innerHTML = html;
         var entry = wrapper.firstElementChild;
 
         container.appendChild(entry);
-        setupEntry(entry);
+        setupEntry(entry, true);   // new entries start expanded
         idx++;
         renumber();
 
         var dateInput = entry.querySelector('input[name$="[effective_date]"]');
-        if (dateInput) {
-            dateInput.focus();
+        if (dateInput) { dateInput.focus(); }
+    });
+
+    // ── Collapse-all / Expand-all toolbar ────────────────────────────────────
+    var toolbar = document.createElement('div');
+    toolbar.style.cssText = 'margin-bottom:.75rem; display:flex; gap:.5rem;';
+    toolbar.innerHTML =
+        '<button type="button" class="btn small" id="rf-collapse-all">Collapse all</button>' +
+        '<button type="button" class="btn small" id="rf-expand-all">Expand all</button>';
+    container.parentNode.insertBefore(toolbar, container);
+
+    document.getElementById('rf-collapse-all').addEventListener('click', function() {
+        container.querySelectorAll('.rf-entry').forEach(collapseEntry);
+    });
+    document.getElementById('rf-expand-all').addEventListener('click', function() {
+        container.querySelectorAll('.rf-entry').forEach(expandEntry);
+    });
+
+    // ── Ctrl+S to save ───────────────────────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            var form = document.querySelector('form.rule-file-form');
+            if (form) { form.requestSubmit(); }
         }
     });
 
-    container.querySelectorAll('.rf-entry').forEach(setupEntry);
+    // ── Init existing entries (start expanded) ───────────────────────────────
+    container.querySelectorAll('.rf-entry').forEach(function(e) { setupEntry(e, true); });
     renumber();
 
 }());
