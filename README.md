@@ -424,19 +424,65 @@ craft _priceadjuster/scheduler/delete --date=2027-01-01
 ```
 
 ### `export/index` — Export schedule to CSV
-Exports all staged rows for a given date to `<exportDirectory>/price-schedule-<date>.csv`. Columns: `SKU`, `Title`, `Rule`, `Effective Date`, `Applied At`, `Old Price`, `New Price`, `Old Promo Price`, `New Promo Price`. Delimiter: `;`.
+Exports staged rows for a given date and/or rule to a CSV file in `<exportDirectory>`. Columns: `SKU`, `Title`, `Rule`, `Effective Date`, `Applied At`, `Old Price`, `New Price`, `Old Promo Price`, `New Promo Price`. Delimiter: `;`. Both pending and already-applied rows are included.
+
+The output filename reflects the active filter(s):
+| Options used | Output file |
+|---|---|
+| `--date=2027-01-01` | `price-schedule-2027-01-01.csv` |
+| `--rule=my-rule` | `price-schedule-my-rule.csv` |
+| `--date=2027-01-01 --rule=my-rule` | `price-schedule-2027-01-01-my-rule.csv` |
+
 ```bash
+# Export all rows for a date
 craft _priceadjuster/export/index --date=2027-01-01
+# Export all rows for a rule (across all its effective dates)
+craft _priceadjuster/export/index --rule=my-rule
+# Export rows that match both a date and a rule
+craft _priceadjuster/export/index --date=2027-01-01 --rule=my-rule
+# Use today's date
+craft _priceadjuster/export/index --date=today
 ```
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--date=YYYY-MM-DD` | Filter by effective date |
+| `--date=today` | Use today's date (resolved at runtime to `YYYY-MM-DD`) |
+| `--rule=<name>` | Filter by rule name |
+
+At least one of `--date` or `--rule` is required. The export directory is created automatically if it does not exist.
 
 ### `import/index` — Import prices from CSV
-Reads a CSV from `<importDirectory>/price-schedule-<date>.csv` and updates the staged `newPrice` / `newPromotionalPrice` for any rows where the value differs. Place a hand-edited copy of the exported file in `importDirectory` before running.
+Reads a CSV from `<importDirectory>` and updates the staged `newPrice` / `newPromotionalPrice` for any rows where the value differs. Only pending rows (`appliedAt = null`) are updated. Place a hand-edited copy of the exported file in `importDirectory` before running.
+
+The input filename is derived from the same filter suffix logic as the export command:
+| Options used | Expected file |
+|---|---|
+| `--date=2027-01-01` | `price-schedule-2027-01-01.csv` |
+| `--rule=my-rule` | `price-schedule-my-rule.csv` |
+| `--date=2027-01-01 --rule=my-rule` | `price-schedule-2027-01-01-my-rule.csv` |
+
 ```bash
+# Import by date
 craft _priceadjuster/import/index --date=2027-01-01
-# Dry-run (print changes without saving)
+# Import by rule (CSV may span multiple effective dates — each row is matched by its own Effective Date column)
+craft _priceadjuster/import/index --rule=my-rule
+# Import by both
+craft _priceadjuster/import/index --date=2027-01-01 --rule=my-rule
+# Dry-run: print changes and run validation without saving
 craft _priceadjuster/import/index --date=2027-01-01 --dry-run=1
 ```
-**Expected CSV columns:** `SKU`, `New Price`, `New Promo Price` (others are ignored on import).
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--date=YYYY-MM-DD` | Filter by effective date |
+| `--date=today` | Use today's date (resolved at runtime to `YYYY-MM-DD`) |
+| `--rule=<name>` | Filter by rule name |
+| `--dry-run=1` | Print what would change, run model validation, and report any errors — without writing to the database |
+
+At least one of `--date` or `--rule` is required.
+
+**Expected CSV columns:** `SKU`, `New Price`, `New Promo Price` (others are read but ignored on import). When `--rule` is used without `--date`, the `Effective Date` column in the CSV is used per-row to match the correct schedule record.
 
 ## Extension Hook — `buildRows` Event
 `SchedulerService::buildRows()` exposes an event hook so projects can adjust computed schedule rows before preview/stage uses them.
@@ -607,7 +653,9 @@ craft _priceadjuster/scheduler/preview --rule=2027-01-01
 craft _priceadjuster/scheduler/stage --rule=2027-01-01
 # 4. Export for review / spreadsheet editing (written to exportDirectory)
 craft _priceadjuster/export/index --date=2027-01-01
-# 5. Copy edited file to importDirectory, then import changes
+# or export by rule (spans all effective dates in that rule file)
+craft _priceadjuster/export/index --rule=2027-01-01
+# 5. Copy edited file to importDirectory, then validate and import changes
 craft _priceadjuster/import/index --date=2027-01-01 --dry-run=1
 craft _priceadjuster/import/index --date=2027-01-01
 # 6. Final review in CP: Utilities → Price Schedule
