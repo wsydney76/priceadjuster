@@ -327,6 +327,9 @@ return [
   }
 ]
 ```
+
+Note: There is no `promotable` query param for variant queries (todo: check), but you can use `andWhere` to add any arbitrary condition to the query.
+
 **Combined: set a promotional price and reset it later:**
 ```json
 [
