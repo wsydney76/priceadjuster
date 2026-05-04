@@ -1,0 +1,168 @@
+{% import "_includes/forms.twig" as forms %}
+
+{# ── Header ── #}
+<p style="margin-bottom:1rem;">
+    <a href="{{ url(craft.app.request.pathInfo) }}" class="go">← All rule files</a>
+</p>
+
+<h2 style="margin-bottom:1rem;">
+    {% if isNew %}
+        Create New Rule File
+    {% else %}
+        Edit: <strong>{{ fileName }}.json</strong>
+    {% endif %}
+</h2>
+
+{% if parseError is defined and parseError %}
+    <div class="error" style="margin-bottom:1rem;">
+        ⚠ {{ parseError }} The file may have been edited externally. Fix the JSON manually before using this editor.
+    </div>
+{% endif %}
+
+<form method="post" class="rule-file-form">
+    {{ csrfInput() }}
+    {{ actionInput('_priceadjuster/rule-file/save') }}
+
+    {% if isNew %}
+        {{ forms.textField({
+            label: 'File Name',
+            name: 'fileName',
+            required: true,
+            placeholder: 'e.g. 2027-spring-sale',
+            instructions: 'Alphanumeric characters, hyphens, underscores and dots only. The <code>.json</code> extension is added automatically.',
+            autofocus: true,
+        }) }}
+    {% else %}
+        <input type="hidden" name="fileName" value="{{ fileName }}">
+    {% endif %}
+
+    {# ── Adjustment type options (shared) ── #}
+    {% set adjTypeOptions = [
+        {label: '—',        value: ''},
+        {label: '%',        value: 'percentage'},
+        {label: 'Amt',      value: 'amount'},
+        {label: 'Reset',    value: 'reset'},
+        {label: 'Callback', value: 'callback'},
+    ] %}
+
+    {{ forms.editableTableField({
+        label: 'Rule Entries',
+        name: 'rules',
+        instructions: 'Each row is one rule entry. ' ~
+            'Criteria / Variant Criteria accept compact JSON (e.g. <code>{"productCategory":123}</code>). ' ~
+            'Last matching rule wins when the same variant appears in multiple entries for the same date.',
+        addRowLabel: '+ Add rule entry',
+        cols: {
+            effective_date: {
+                type: 'singleline',
+                heading: 'Effective Date',
+                placeholder: 'YYYY-MM-DD',
+                width: '110px',
+            },
+            label: {
+                type: 'singleline',
+                heading: 'Label',
+                placeholder: 'Human-readable label',
+            },
+            action: {
+                type: 'select',
+                heading: 'Action',
+                options: [
+                    {label: '—',      value: ''},
+                    {label: 'Ignore', value: 'ignore'},
+                ],
+                width: '80px',
+            },
+            criteria: {
+                type: 'singleline',
+                heading: 'Criteria (JSON)',
+                placeholder: '{"productCategory":123}',
+            },
+            variantCriteria: {
+                type: 'singleline',
+                heading: 'Variant Criteria (JSON)',
+                placeholder: '{"color":456}',
+            },
+            priceType: {
+                type: 'select',
+                heading: 'Price Adj.',
+                options: adjTypeOptions,
+                width: '100px',
+            },
+            priceValue: {
+                type: 'singleline',
+                heading: 'Price Val.',
+                placeholder: '10',
+                width: '75px',
+            },
+            promoType: {
+                type: 'select',
+                heading: 'Promo Adj.',
+                options: adjTypeOptions,
+                width: '100px',
+            },
+            promoValue: {
+                type: 'singleline',
+                heading: 'Promo Val.',
+                placeholder: '-10',
+                width: '75px',
+            },
+            friendlyPriceStrategy: {
+                type: 'singleline',
+                heading: 'Friendly Price',
+                placeholder: 'x.95',
+                width: '95px',
+            },
+        },
+        rows: tableRows,
+        allowAdd: true,
+        allowDelete: true,
+        allowReorder: true,
+    }) }}
+
+    <hr style="margin:1.5rem 0;">
+
+    <div class="ps-toolbar-group">
+        <button type="submit" class="btn submit">Save Rule File</button>
+        {% if not isNew %}
+            &nbsp;
+            <form method="post" style="display:inline;">
+                {{ csrfInput() }}
+                {{ actionInput('_priceadjuster/rule-file/delete') }}
+                <input type="hidden" name="fileName" value="{{ fileName }}">
+                <button type="submit"
+                        class="btn ps-btn-danger"
+                        onclick="return confirm('Delete {{ fileName }}.json? This cannot be undone.')">
+                    Delete this file
+                </button>
+            </form>
+        {% endif %}
+    </div>
+</form>
+
+<div style="margin-top:2rem;">
+    <details>
+        <summary class="light" style="cursor:pointer;">Friendly-price strategy reference</summary>
+        <table class="data" style="margin-top:.5rem; max-width: 500px;">
+            <thead><tr><th>Value</th><th>Formula</th><th>Example (raw 49.73)</th></tr></thead>
+            <tbody>
+            {% for row in [
+                {v:'x.99',  f:'floor(price) + 0.99', e:'49.99'},
+                {v:'x.95',  f:'floor(price) + 0.95', e:'49.95 (default)'},
+                {v:'x.90',  f:'floor(price) + 0.90', e:'49.90'},
+                {v:'round', f:'round(price, 0)',      e:'50.00'},
+                {v:'ceil',  f:'ceil(price)',           e:'50.00'},
+                {v:'floor', f:'floor(price)',          e:'49.00'},
+                {v:'exact', f:'no rounding',           e:'49.73'},
+            ] %}
+                <tr><td><code>{{ row.v }}</code></td><td>{{ row.f }}</td><td>{{ row.e }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <p class="light" style="margin-top:.5rem;">
+            You can also enter a <code>Namespace\\Class::method</code> static-method string for custom rounding.
+        </p>
+    </details>
+</div>
+
+

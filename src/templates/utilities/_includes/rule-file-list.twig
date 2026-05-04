@@ -1,0 +1,53 @@
+{# ── Rule File List ── #}
+<div class="ps-toolbar-group" style="margin-bottom: 1.5rem;">
+    <a href="{{ url(craft.app.request.pathInfo, {file: 'new'}) }}" class="btn submit">+ Create New Rule File</a>
+</div>
+
+<p class="light" style="margin-bottom:1rem;">
+    Rules directory: <code>{{ rulesDir }}</code>
+</p>
+
+{% if files is empty %}
+    <p class="zilch">No rule files found in the rules directory.</p>
+{% else %}
+    <table class="data full collapsible">
+        <thead>
+        <tr>
+            <th>File</th>
+            <th class="thin" style="text-align:right;">Entries</th>
+            <th class="thin">Last Modified</th>
+            <th class="thin"></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for file in files %}
+            <tr>
+                <td>
+                    <a class="go" href="{{ url(craft.app.request.pathInfo, {file: file.name}) }}">
+                        {{ file.name }}.json
+                    </a>
+                    {% if file.parseError %}
+                        <span class="status expired" title="File contains invalid JSON"></span>
+                        <small class="light"> invalid JSON</small>
+                    {% endif %}
+                </td>
+                <td class="thin" style="text-align:right;">{{ file.entryCount }}</td>
+                <td class="thin">{{ file.modified|date('Y-m-d H:i') }}</td>
+                <td class="thin">
+                    <form method="post" style="display:inline;">
+                        {{ csrfInput() }}
+                        {{ actionInput('_priceadjuster/rule-file/delete') }}
+                        <input type="hidden" name="fileName" value="{{ file.name }}">
+                        <button type="submit"
+                                class="btn small ps-btn-danger"
+                                onclick="return confirm('Delete {{ file.name }}.json? This cannot be undone.')">
+                            Delete
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+

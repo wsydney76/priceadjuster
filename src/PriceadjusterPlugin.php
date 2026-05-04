@@ -9,6 +9,7 @@ use craft\services\Utilities;
 use wsydney76\priceadjuster\models\Settings;
 use wsydney76\priceadjuster\services\SchedulerService;
 use wsydney76\priceadjuster\utilities\PriceScheduleUtility;
+use wsydney76\priceadjuster\utilities\RuleFileUtility;
 use yii\base\Event;
 /**
  * Price Adjuster plugin
@@ -86,6 +87,7 @@ class PriceadjusterPlugin extends Plugin
             Utilities::EVENT_REGISTER_UTILITIES,
             function(RegisterComponentTypesEvent $event) {
                 $event->types[] = PriceScheduleUtility::class;
+                $event->types[] = RuleFileUtility::class;
             }
         );
     }
