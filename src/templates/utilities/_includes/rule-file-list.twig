@@ -15,6 +15,8 @@
         <tr>
             <th>File</th>
             <th class="thin" style="text-align:right;">Entries</th>
+            <th class="thin" style="text-align:right;">DB Records</th>
+            <th class="thin" style="text-align:right;">Applied</th>
             <th class="thin">Last Modified</th>
             <th class="thin"></th>
         </tr>
@@ -32,8 +34,32 @@
                     {% endif %}
                 </td>
                 <td class="thin" style="text-align:right;">{{ file.entryCount }}</td>
+                {% set counts = recordCounts[file.name] ?? {total: 0, applied: 0} %}
+                <td class="thin" style="text-align:right;">{{ counts.total ?: '' }}</td>
+                <td class="thin" style="text-align:right;">{{ counts.applied ?: '' }}</td>
                 <td class="thin">{{ file.modified|date('Y-m-d H:i') }}</td>
-                <td class="thin">
+                <td class="thin" style="white-space:nowrap;">
+                    <a href="{{ cpUrl('utilities/price-schedule', {rule: file.name}) }}"
+                       class="btn small">View Schedule</a>
+                    <button type="button"
+                            class="btn small ps-stage-rule-btn"
+                            data-rule="{{ file.name }}"
+                            {% if file.parseError %}disabled title="File contains invalid JSON"{% endif %}>
+                        Stage
+                    </button>
+                    <button type="button"
+                            class="btn small ps-stage-rule-btn"
+                            data-rule="{{ file.name }}"
+                            data-replace="1"
+                            {% if file.parseError %}disabled title="File contains invalid JSON"{% endif %}>
+                        Stage+Replace
+                    </button>
+                    <button type="button"
+                            class="btn small ps-delete-rule-btn ps-btn-danger"
+                            data-rule="{{ file.name }}"
+                            data-total="all">
+                        Delete Records
+                    </button>
                     <form method="post" style="display:inline;" onsubmit="
                         var n = prompt('New file name (without .json):', '{{ file.name }}-copy');
                         if (!n) return false;
@@ -52,7 +78,7 @@
                         <button type="submit"
                                 class="btn small ps-btn-danger"
                                 onclick="return confirm('Delete {{ file.name }}.json? This cannot be undone.')">
-                            Delete
+                            Delete File
                         </button>
                     </form>
                 </td>
@@ -61,4 +87,3 @@
         </tbody>
     </table>
 {% endif %}
-

@@ -15,12 +15,13 @@
         }
     });
 
-    // ── Rule-list: delete all records for a rule ──────────────────────────────
+    // ── Rule-list / Rule-file-list: delete all records for a rule ────────────
     document.querySelectorAll('.ps-delete-rule-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var rule = btn.dataset.rule;
             var total = btn.dataset.total;
-            if (!confirm('Delete all ' + total + ' record(s) for rule "' + rule + '"? This cannot be undone.')) {
+            var totalLabel = (total && !isNaN(total)) ? total : 'all';
+            if (!confirm('Delete ' + totalLabel + ' record(s) for rule "' + rule + '"? This cannot be undone.')) {
                 return;
             }
             btn.classList.add('loading');
@@ -31,6 +32,29 @@
                 reloadPage(response.data.message || 'Deleted.');
             }).catch(function (e) {
                 Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Delete failed.');
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            });
+        });
+    });
+
+    // ── Rule-file-list: stage rows for a rule ────────────────────────────────
+    document.querySelectorAll('.ps-stage-rule-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var rule    = btn.dataset.rule;
+            var replace = btn.dataset.replace === '1';
+            var label   = replace ? 'Stage + Replace' : 'Stage';
+            if (replace && !confirm('Stage "' + rule + '" with replace? All existing pending records for this rule will be deleted first.')) {
+                return;
+            }
+            btn.classList.add('loading');
+            btn.disabled = true;
+            Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/stage-by-rule', {
+                data: {rule: rule, replace: replace ? 1 : 0}
+            }).then(function (response) {
+                reloadPage(response.data.message || label + ' completed.');
+            }).catch(function (e) {
+                Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || label + ' failed.');
                 btn.classList.remove('loading');
                 btn.disabled = false;
             });

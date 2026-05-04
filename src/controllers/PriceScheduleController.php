@@ -66,6 +66,55 @@ class PriceScheduleController extends Controller
     }
 
     /**
+     * Stage price rows for a given rule from its JSON file.
+     *
+     * Expects POST body:
+     *   rule    — bare rule name (file name without .json)
+     *   replace — 0|1, when 1 deletes existing pending records first
+     */
+    public function actionStageByRule(): Response
+    {
+        $this->requireCpRequest();
+        $this->requirePermission('utility:price-schedule');
+        $this->requirePostRequest();
+
+        $request = Craft::$app->getRequest();
+        $rule    = $request->getRequiredBodyParam('rule');
+        $replace = (bool)$request->getBodyParam('replace', false);
+
+        $service = PriceadjusterPlugin::getInstance()->scheduler;
+
+        try {
+            $rows = $service->buildRows($rule);
+        } catch (\RuntimeException $e) {
+            return $this->asFailure($e->getMessage());
+        }
+
+        if (empty($rows)) {
+            return $this->asSuccess('No rows to stage (rule produced 0 variants).');
+        }
+
+        $results = $service->stageRows($rows, $rule, $replace);
+
+        $staged  = count(array_filter($results, fn($r) => ($r['status'] ?? '') === 'staged'));
+        $skipped = count(array_filter($results, fn($r) => ($r['status'] ?? '') === 'skipped'));
+        $errors  = count(array_filter($results, fn($r) => ($r['status'] ?? '') === 'error'));
+
+        $summary = Craft::t('site', '{n,plural,=1{1 row}other{# rows}} staged', ['n' => $staged]);
+        if ($skipped) {
+            $summary .= ", {$skipped} skipped";
+        }
+        if ($errors) {
+            $summary .= ", {$errors} errors";
+        }
+        $summary .= '.';
+
+        return $errors > 0 && $staged === 0
+            ? $this->asFailure($summary)
+            : $this->asSuccess($summary);
+    }
+
+    /**
      * Delete all records for a given rule name.
      *
      * Expects POST body: rule = <ruleName>

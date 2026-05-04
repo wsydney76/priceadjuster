@@ -6,6 +6,8 @@ use Craft;
 use craft\base\Utility;
 use wsydney76\priceadjuster\assetbundles\PriceScheduleAsset;
 use wsydney76\priceadjuster\PriceadjusterPlugin;
+use wsydney76\priceadjuster\records\PriceSchedule;
+use yii\db\Expression;
 
 /**
  * Rule File utility — lists, creates, edits, and deletes JSON rule files.
@@ -59,15 +61,35 @@ class RuleFileUtility extends Utility
             }
             usort($files, fn($a, $b) => strcmp($a['name'], $b['name']));
 
+            // ── DB record counts per rule ──────────────────────────────────────
+            $dbRows = PriceSchedule::find()
+                ->select([
+                    'ruleName',
+                    new Expression('COUNT(*) as total'),
+                    new Expression('SUM(appliedAt IS NOT NULL) as applied'),
+                ])
+                ->groupBy(['ruleName'])
+                ->asArray()
+                ->all();
+
+            $recordCounts = [];
+            foreach ($dbRows as $row) {
+                $recordCounts[$row['ruleName']] = [
+                    'total'   => (int)$row['total'],
+                    'applied' => (int)$row['applied'],
+                ];
+            }
+
             return Craft::$app->getView()->renderTemplate(
                 '_priceadjuster/utilities/rule-file.twig',
                 [
-                    'files'     => $files,
-                    'rulesDir'  => $rulesDir,
-                    'editFile'  => null,
-                    'fileName'  => null,
-                    'isNew'     => false,
-                    'tableRows' => [],
+                    'files'        => $files,
+                    'rulesDir'     => $rulesDir,
+                    'editFile'     => null,
+                    'fileName'     => null,
+                    'isNew'        => false,
+                    'tableRows'    => [],
+                    'recordCounts' => $recordCounts,
                 ]
             );
         }
