@@ -1,4 +1,146 @@
 {% import "_includes/forms.twig" as forms %}
+{% import "codeeditor/codeEditor" as codeEditor %}
+
+{# ── Shared adjustment-type select macro ── #}
+{% macro adjSelect(name, selected) %}
+    <div class="select fullwidth">
+        <select name="{{ name }}">
+            <option value="" {{ selected == ''           ? 'selected' }}>—</option>
+            <option value="percentage" {{ selected == 'percentage' ? 'selected' }}>Percentage (%)</option>
+            <option value="amount" {{ selected == 'amount'     ? 'selected' }}>Amount</option>
+            <option value="reset" {{ selected == 'reset'      ? 'selected' }}>Reset</option>
+            <option value="callback" {{ selected == 'callback'   ? 'selected' }}>Callback</option>
+        </select>
+    </div>
+{% endmacro %}
+
+{# ── Rule-entry card macro ── #}
+{% macro ruleEntry(index, row) %}
+    {% import _self as self %}
+    <div class="rf-entry">
+    <div class="rf-entry-header">
+        <span class="rf-entry-num">#{{ index != '__IDX__' ? index + 1 : '' }}</span>
+        <div class="rf-entry-controls">
+            <button type="button" class="btn small rf-up-btn" title="Move up">▲</button>
+            <button type="button" class="btn small rf-down-btn" title="Move down">▼</button>
+            <button type="button" class="btn small ps-btn-danger rf-delete-btn">Remove</button>
+        </div>
+    </div>
+
+    <div class="rf-entry-body">
+
+    {# Row 1: Date · Label · Action #}
+    <div class="rf-row rf-row--top">
+        <div class="rf-field rf-field--date">
+            <label class="rf-label">Effective Date <span class="required">*</span></label>
+            <input class="text fullwidth" type="text"
+                   name="rules[{{ index }}][effective_date]"
+                   value="{{ row.effective_date ?? '' }}"
+                   placeholder="YYYY-MM-DD">
+        </div>
+        <div class="rf-field rf-field--label">
+            <label class="rf-label">Label</label>
+            <input class="text fullwidth" type="text"
+                   name="rules[{{ index }}][label]"
+                   value="{{ row.label ?? '' }}"
+                   placeholder="Human-readable label">
+        </div>
+        <div class="rf-field rf-field--action">
+            <label class="rf-label">Action</label>
+            <div class="select fullwidth">
+                <select name="rules[{{ index }}][action]">
+                    <option value="" {{ (row.action ?? '') == ''       ? 'selected' }}>—</option>
+                    <option value="ignore" {{ (row.action ?? '') == 'ignore' ? 'selected' }}>Ignore</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    {# Row 2: Criteria · Variant Criteria #}
+    <div class="rf-row ">
+        <div class="rf-field">
+            <label class="rf-label">
+                Criteria
+                <span class="rf-hint">(JSON — e.g. <code>{"productCategory":123}</code>)</span>
+            </label>
+
+            <div class="text" style="width: 99%;">
+                {{ codeEditor.textarea({
+                    id: "criteria-#{index}",
+                    name: "rules[#{index}][criteria]",
+                    value: row.criteria ?? '',
+                }, "Code Editor" , {language: "json"}) }}
+            </div>
+
+            {# <input class="text fullwidth" type="text"
+                           name="rules[{{ index }}][criteria]"
+                           value="{{ row.criteria ?? '' }}"
+                           placeholder='{"productCategory": 123}'> #}
+        </div>
+        <div class="rf-field">
+            <label class="rf-label">
+                Variant Criteria
+                <span class="rf-hint">(JSON)</span>
+            </label>
+            <div class="text" style="width: 99%;">
+                {{ codeEditor.textarea({
+                    id: "variant-criteria-#{index}",
+                    name: "rules[#{index}][variantCriteria]",
+                    value: row.variantCriteria ?? '',
+                }, "Code Editor" , {language: "json"}) }}
+            </div>
+            {# <input class="text fullwidth" type="text"
+                           name="rules[{{ index }}][variantCriteria]"
+                           value="{{ row.variantCriteria ?? '' }}"
+                           placeholder='{"color": 456}'> #}
+        </div>
+    </div>
+
+    {# Row 3: Price Adj · Promo Adj #}
+    <div class="rf-row rf-row--2col">
+        <div class="rf-field">
+            <label class="rf-label">Price Adjustment</label>
+            <div class="rf-adj-group">
+                {{ self.adjSelect('rules[' ~ index ~ '][priceType]', row.priceType ?? '') }}
+                <input class="text rf-val-input" type="text"
+                       name="rules[{{ index }}][priceValue]"
+                       value="{{ row.priceValue ?? '' }}"
+                       placeholder="value (e.g. 10)">
+            </div>
+        </div>
+        <div class="rf-field">
+            <label class="rf-label">Promotional Price Adjustment</label>
+            <div class="rf-adj-group">
+                {{ self.adjSelect('rules[' ~ index ~ '][promoType]', row.promoType ?? '') }}
+                <input class="text rf-val-input" type="text"
+                       name="rules[{{ index }}][promoValue]"
+                       value="{{ row.promoValue ?? '' }}"
+                       placeholder="value (e.g. -10)">
+            </div>
+        </div>
+    </div>
+
+    {# Row 4: Friendly Price Strategy #}
+    <div class="rf-row rf-row--fps">
+        <div class="rf-field">
+            <label class="rf-label">
+                Friendly Price Strategy
+                <span class="rf-hint">(x.95, x.99, x.90, round, ceil, floor, exact, or Class::method)</span>
+            </label>
+            <input class="text" type="text"
+                   name="rules[{{ index }}][friendlyPriceStrategy]"
+                   value="{{ row.friendlyPriceStrategy ?? '' }}"
+                   placeholder="x.95 — leave empty to use project default">
+        </div>
+    </div>
+
+    </div>{# /rf-entry-body #}
+    </div>{# /rf-entry #}
+{% endmacro %}
+
+{# ═══════════════════════════════════════════════════════════════════════════════ #}
+
+{% import _self as self %}
 
 {# ── Header ── #}
 <p style="margin-bottom:1rem;">
@@ -6,19 +148,18 @@
 </p>
 
 <h2 style="margin-bottom:1rem;">
-    {% if isNew %}
-        Create New Rule File
-    {% else %}
-        Edit: <strong>{{ fileName }}.json</strong>
+    {% if isNew %}Create New Rule File
+    {% else %}Edit: <strong>{{ fileName }}.json</strong>
     {% endif %}
 </h2>
 
 {% if parseError is defined and parseError %}
     <div class="error" style="margin-bottom:1rem;">
-        ⚠ {{ parseError }} The file may have been edited externally. Fix the JSON manually before using this editor.
+        ⚠ {{ parseError }} The file may have been edited externally — fix the JSON manually before using this editor.
     </div>
 {% endif %}
 
+{# ── Form ── #}
 <form method="post" class="rule-file-form">
     {{ csrfInput() }}
     {{ actionInput('_priceadjuster/rule-file/save') }}
@@ -29,124 +170,63 @@
             name: 'fileName',
             required: true,
             placeholder: 'e.g. 2027-spring-sale',
-            instructions: 'Alphanumeric characters, hyphens, underscores and dots only. The <code>.json</code> extension is added automatically.',
+            instructions: 'Letters, digits, hyphens, underscores and dots only. The <code>.json</code> extension is added automatically.',
             autofocus: true,
         }) }}
     {% else %}
         <input type="hidden" name="fileName" value="{{ fileName }}">
     {% endif %}
 
-    {# ── Adjustment type options (shared) ── #}
-    {% set adjTypeOptions = [
-        {label: '—',        value: ''},
-        {label: '%',        value: 'percentage'},
-        {label: 'Amt',      value: 'amount'},
-        {label: 'Reset',    value: 'reset'},
-        {label: 'Callback', value: 'callback'},
-    ] %}
-
-    {{ forms.editableTableField({
-        label: 'Rule Entries',
-        name: 'rules',
-        instructions: 'Each row is one rule entry. ' ~
-            'Criteria / Variant Criteria accept compact JSON (e.g. <code>{"productCategory":123}</code>). ' ~
-            'Last matching rule wins when the same variant appears in multiple entries for the same date.',
-        addRowLabel: '+ Add rule entry',
-        cols: {
-            effective_date: {
-                type: 'singleline',
-                heading: 'Effective Date',
-                placeholder: 'YYYY-MM-DD',
-                width: '110px',
-            },
-            label: {
-                type: 'singleline',
-                heading: 'Label',
-                placeholder: 'Human-readable label',
-            },
-            action: {
-                type: 'select',
-                heading: 'Action',
-                options: [
-                    {label: '—',      value: ''},
-                    {label: 'Ignore', value: 'ignore'},
-                ],
-                width: '80px',
-            },
-            criteria: {
-                type: 'singleline',
-                heading: 'Criteria (JSON)',
-                placeholder: '{"productCategory":123}',
-            },
-            variantCriteria: {
-                type: 'singleline',
-                heading: 'Variant Criteria (JSON)',
-                placeholder: '{"color":456}',
-            },
-            priceType: {
-                type: 'select',
-                heading: 'Price Adj.',
-                options: adjTypeOptions,
-                width: '100px',
-            },
-            priceValue: {
-                type: 'singleline',
-                heading: 'Price Val.',
-                placeholder: '10',
-                width: '75px',
-            },
-            promoType: {
-                type: 'select',
-                heading: 'Promo Adj.',
-                options: adjTypeOptions,
-                width: '100px',
-            },
-            promoValue: {
-                type: 'singleline',
-                heading: 'Promo Val.',
-                placeholder: '-10',
-                width: '75px',
-            },
-            friendlyPriceStrategy: {
-                type: 'singleline',
-                heading: 'Friendly Price',
-                placeholder: 'x.95',
-                width: '95px',
-            },
-        },
-        rows: tableRows,
-        allowAdd: true,
-        allowDelete: true,
-        allowReorder: true,
-    }) }}
-
-    <hr style="margin:1.5rem 0;">
-
-    <div class="ps-toolbar-group">
-        <button type="submit" class="btn submit">Save Rule File</button>
-        {% if not isNew %}
-            &nbsp;
-            <form method="post" style="display:inline;">
-                {{ csrfInput() }}
-                {{ actionInput('_priceadjuster/rule-file/delete') }}
-                <input type="hidden" name="fileName" value="{{ fileName }}">
-                <button type="submit"
-                        class="btn ps-btn-danger"
-                        onclick="return confirm('Delete {{ fileName }}.json? This cannot be undone.')">
-                    Delete this file
-                </button>
-            </form>
-        {% endif %}
+    {# ── Rule entries ── #}
+    <div id="rf-container" data-next-index="{{ tableRows|length }}">
+        {% for index, row in tableRows %}
+            {{ self.ruleEntry(index, row) }}
+        {% else %}
+            <p class="zilch" id="rf-empty-hint">No rule entries yet. Click "+ Add rule entry" below to start.</p>
+        {% endfor %}
     </div>
+
+    <button type="button" id="rf-add-btn" class="btn" style="margin-bottom:1.5rem;">
+        + Add rule entry
+    </button>
+
+    {# Template for new entries — never submitted, cloned by JS #}
+    <template id="rf-entry-tpl">
+        {{ self.ruleEntry('__IDX__', {}) }}
+    </template>
+
+    <hr style="margin: 1rem 0 1.5rem;">
+
+    <button type="submit" class="btn submit">Save Rule File</button>
 </form>
 
+{% if not isNew %}
+    <form method="post" style="margin-top: 0.75rem;">
+        {{ csrfInput() }}
+        {{ actionInput('_priceadjuster/rule-file/delete') }}
+        <input type="hidden" name="fileName" value="{{ fileName }}">
+        <button type="submit"
+                class="btn ps-btn-danger"
+                onclick="return confirm('Delete {{ fileName }}.json? This cannot be undone.')">
+            Delete this file
+        </button>
+    </form>
+{% endif %}
+
+{# ── Friendly-price quick-reference ── #}
 <div style="margin-top:2rem;">
     <details>
         <summary class="light" style="cursor:pointer;">Friendly-price strategy reference</summary>
-        <table class="data" style="margin-top:.5rem; max-width: 500px;">
-            <thead><tr><th>Value</th><th>Formula</th><th>Example (raw 49.73)</th></tr></thead>
+        <table class="data" style="margin-top:.5rem; max-width:480px;">
+            <thead>
+            <tr>
+                <th>Value</th>
+                <th>Formula</th>
+                <th>Example (raw 49.73)</th>
+            </tr>
+            </thead>
             <tbody>
-            {% for row in [
+            {% for r in [
                 {v:'x.99',  f:'floor(price) + 0.99', e:'49.99'},
                 {v:'x.95',  f:'floor(price) + 0.95', e:'49.95 (default)'},
                 {v:'x.90',  f:'floor(price) + 0.90', e:'49.90'},
@@ -155,14 +235,104 @@
                 {v:'floor', f:'floor(price)',          e:'49.00'},
                 {v:'exact', f:'no rounding',           e:'49.73'},
             ] %}
-                <tr><td><code>{{ row.v }}</code></td><td>{{ row.f }}</td><td>{{ row.e }}</td></tr>
+                <tr>
+                    <td><code>{{ r.v }}</code></td>
+                    <td>{{ r.f }}</td>
+                    <td>{{ r.e }}</td>
+                </tr>
             {% endfor %}
             </tbody>
         </table>
         <p class="light" style="margin-top:.5rem;">
-            You can also enter a <code>Namespace\\Class::method</code> static-method string for custom rounding.
+            Custom rounding: enter a <code>Namespace\\Class::method</code> static-method string.
         </p>
     </details>
 </div>
 
+{# ── JS ── #}
+{% js %}
+(function() {
+    'use strict';
 
+    var container = document.getElementById('rf-container');
+    var template = document.getElementById('rf-entry-tpl');
+    var addBtn = document.getElementById('rf-add-btn');
+    if (!container || !template || !addBtn) {
+        return;
+    }
+
+    var idx = parseInt(container.dataset.nextIndex || '0', 10);
+
+    function setupEntry(entry) {
+        var del = entry.querySelector('.rf-delete-btn');
+        var up = entry.querySelector('.rf-up-btn');
+        var down = entry.querySelector('.rf-down-btn');
+
+        if (del) {
+            del.addEventListener('click', function() {
+                entry.remove();
+                renumber();
+            });
+        }
+        if (up) {
+            up.addEventListener('click', function() {
+                var p = entry.previousElementSibling;
+                if (p) {
+                    container.insertBefore(entry, p);
+                    renumber();
+                }
+            });
+        }
+        if (down) {
+            down.addEventListener('click', function() {
+                var n = entry.nextElementSibling;
+                if (n) {
+                    container.insertBefore(n, entry);
+                    renumber();
+                }
+            });
+        }
+    }
+
+    function renumber() {
+        var hint = document.getElementById('rf-empty-hint');
+        var entries = container.querySelectorAll('.rf-entry');
+
+        if (hint) {
+            hint.style.display = entries.length ? 'none' : '';
+        }
+
+        entries.forEach(function(entry, i) {
+            var num = entry.querySelector('.rf-entry-num');
+            if (num) {
+                num.textContent = '#' + (i + 1);
+            }
+
+            entry.querySelectorAll('[name^="rules["]').forEach(function(el) {
+                el.name = el.name.replace(/^rules\[\d+\]/, 'rules[' + i + ']');
+            });
+        });
+    }
+
+    addBtn.addEventListener('click', function() {
+        var html = template.innerHTML.replace(/rules\[__IDX__\]/g, 'rules[' + idx + ']');
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        var entry = wrapper.firstElementChild;
+
+        container.appendChild(entry);
+        setupEntry(entry);
+        idx++;
+        renumber();
+
+        var dateInput = entry.querySelector('input[name$="[effective_date]"]');
+        if (dateInput) {
+            dateInput.focus();
+        }
+    });
+
+    container.querySelectorAll('.rf-entry').forEach(setupEntry);
+    renumber();
+
+}());
+{% endjs %}

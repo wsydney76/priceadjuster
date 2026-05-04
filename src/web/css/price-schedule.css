@@ -193,6 +193,101 @@
     opacity: .7;
 }
 
+/* ── Rule file editor — entry cards ── */
+
+.rf-entry {
+    border: 1px solid var(--hairline-color);
+    border-radius: 5px;
+    margin-bottom: 1rem;
+    background: var(--gray-050, #fff);
+}
+
+.rf-entry-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .45rem 1rem;
+    background: var(--gray-100);
+    border-bottom: 1px solid var(--hairline-color);
+    border-radius: 5px 5px 0 0;
+}
+
+.rf-entry-num {
+    font-weight: 600;
+    color: var(--gray-500);
+    font-size: .85rem;
+}
+
+.rf-entry-controls {
+    display: flex;
+    gap: .35rem;
+}
+
+.rf-entry-body {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+}
+
+.rf-row {
+    display: grid;
+    gap: .75rem;
+}
+
+/* Date (fixed) · Label (flexible) · Action (fixed) */
+.rf-row--top {
+    grid-template-columns: 150px 1fr 130px;
+}
+
+/* Price adj · Promo adj — equal columns */
+.rf-row--2col {
+    grid-template-columns: 1fr 1fr;
+}
+
+/* Friendly price strategy — capped width so it doesn't stretch oddly */
+.rf-row--fps {
+    grid-template-columns: minmax(0, 600px);
+}
+
+.rf-field {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+}
+
+.rf-label {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.rf-hint {
+    font-weight: normal;
+    font-size: .78rem;
+    color: var(--gray-500);
+}
+
+/* Inline type-select + value input */
+.rf-adj-group {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+}
+
+.rf-adj-group .select {
+    flex: 0 0 130px;  /* fixed width for the type dropdown */
+}
+
+.rf-adj-group .select select {
+    width: 100%;
+}
+
+.rf-val-input {
+    flex: 1;
+    min-width: 0;
+}
+
 /* ── Inline row errors (batch-update) ── */
 
 tr.ps-row-has-error {

@@ -49,11 +49,21 @@ class RuleFileController extends Controller
         }
 
         // ── Build JSON structure from editable-table rows ──────────────────────
-        $rules = [];
+        $rules    = [];
+        $warnings = [];
+        $rowNum   = 0;
+
         foreach ((array)$rulesRaw as $row) {
+            $rowNum++;
             $effectiveDate = trim($row['effective_date'] ?? '');
+
             if ($effectiveDate === '') {
-                continue; // skip blank rows
+                // Only warn if the row had *some* content so we don't nag about the Garnish placeholder row
+                $hasContent = !empty($row['label']) || !empty($row['criteria']) || !empty($row['priceType']) || !empty($row['promoType']);
+                if ($hasContent) {
+                    $warnings[] = "Row {$rowNum} skipped: Effective Date is required.";
+                }
+                continue;
             }
 
             $entry = ['effective_date' => $effectiveDate];
@@ -71,6 +81,8 @@ class RuleFileController extends Controller
                 $decoded = json_decode($criteriaRaw, true);
                 if (is_array($decoded) && !empty($decoded)) {
                     $entry['criteria'] = $decoded;
+                } else {
+                    $warnings[] = "Row {$rowNum} ({$effectiveDate}): Criteria is not valid JSON and was ignored. Value: {$criteriaRaw}";
                 }
             }
 
@@ -80,6 +92,8 @@ class RuleFileController extends Controller
                 $decoded = json_decode($vcRaw, true);
                 if (is_array($decoded) && !empty($decoded)) {
                     $entry['variantCriteria'] = $decoded;
+                } else {
+                    $warnings[] = "Row {$rowNum} ({$effectiveDate}): Variant Criteria is not valid JSON and was ignored. Value: {$vcRaw}";
                 }
             }
 
@@ -88,7 +102,7 @@ class RuleFileController extends Controller
             if ($priceType !== '') {
                 $adj = ['type' => $priceType];
                 if ($priceType !== 'reset') {
-                    $val = $row['priceValue'] ?? '';
+                    $val = trim($row['priceValue'] ?? '');
                     if ($val !== '') {
                         $adj['value'] = (float)$val;
                     }
@@ -101,7 +115,7 @@ class RuleFileController extends Controller
             if ($promoType !== '') {
                 $adj = ['type' => $promoType];
                 if ($promoType !== 'reset') {
-                    $val = $row['promoValue'] ?? '';
+                    $val = trim($row['promoValue'] ?? '');
                     if ($val !== '') {
                         $adj['value'] = (float)$val;
                     }
@@ -118,6 +132,11 @@ class RuleFileController extends Controller
             $rules[] = $entry;
         }
 
+        Craft::info(
+            "RuleFileController::actionSave — received " . count((array)$rulesRaw) . " raw rows, built " . count($rules) . " entries for {$fileName}.json",
+            'priceadjuster'
+        );
+
         // ── Write file ─────────────────────────────────────────────────────────
         $filePath = $rulesDir . '/' . $fileName . '.json';
         $tmp      = $filePath . '.tmp';
@@ -128,7 +147,12 @@ class RuleFileController extends Controller
             return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files', ['file' => $fileName]));
         }
 
-        Craft::$app->getSession()->setNotice("Rule file '{$fileName}.json' saved.");
+        Craft::$app->getSession()->setNotice("Rule file '{$fileName}.json' saved with " . count($rules) . " " . (count($rules) === 1 ? 'entry' : 'entries') . ".");
+
+        foreach ($warnings as $warning) {
+            Craft::$app->getSession()->setError($warning);
+        }
+
         return $this->redirect(UrlHelper::cpUrl('utilities/price-rule-files', ['file' => $fileName]));
     }
 
