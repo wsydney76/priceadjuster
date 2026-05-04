@@ -302,3 +302,41 @@ tr.ps-error-row > td.ps-error-cell {
     border-top: none;
 }
 
+/* ── Dry-run apply results panel ── */
+
+.ps-dry-run-results {
+    margin-bottom: 1.5rem;
+}
+
+.ps-dry-run-panel {
+    border: 1px solid var(--hairline-color);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.ps-dry-run-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .6rem 1rem;
+    background: var(--gray-100);
+    border-bottom: 1px solid var(--hairline-color);
+    font-size: .9rem;
+}
+
+.ps-dry-run-summary {
+    color: var(--gray-500);
+    font-size: .82rem;
+}
+
+.ps-dry-run-footer {
+    padding: .6rem 1rem;
+    background: var(--gray-050, #fff);
+    border-top: 1px solid var(--hairline-color);
+}
+
+.ps-dry-run-row--error td {
+    background-color: var(--red-050, #fff5f5);
+}
+
+

@@ -217,5 +217,80 @@
             });
         });
     });
+
+    // ── Rule-detail: dry-run apply ────────────────────────────────────────────
+    document.querySelectorAll('.ps-dry-run-apply-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var rule = btn.dataset.rule;
+            var date = btn.dataset.date;
+
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            Craft.sendActionRequest('POST', '_priceadjuster/price-schedule/dry-run-apply', {
+                data: {rule: rule, date: date}
+            }).then(function (response) {
+                var results = response.data.results || [];
+                var summary = response.data.summary || response.data.message || '';
+                var panel = btn.closest('.ps-date-group').querySelector('.ps-dry-run-results');
+                if (!panel) { return; }
+
+                var fmt = function (v) { return v !== null && v !== undefined ? parseFloat(v).toFixed(2) : '—'; };
+
+                var html = '<div class="ps-dry-run-panel">';
+                html += '<div class="ps-dry-run-header">';
+                html += '<strong>Dry-run Apply Results</strong>';
+                html += '<span class="ps-dry-run-summary">' + summary + '</span>';
+                html += '</div>';
+
+                if (!results.length) {
+                    html += '<p class="zilch">No records found.</p>';
+                } else {
+                    html += '<table class="data full collapsible">';
+                    html += '<thead><tr>';
+                    html += '<th class="thin">Status</th>';
+                    html += '<th>Title / SKU</th>';
+                    html += '<th class="thin">Old Price</th>';
+                    html += '<th class="thin">New Price</th>';
+                    html += '<th class="thin">Old Promo</th>';
+                    html += '<th class="thin">New Promo</th>';
+                    html += '</tr></thead><tbody>';
+                    results.forEach(function (r) {
+                        var statusClass = r.status === 'applied' ? 'live' : (r.status === 'error' ? 'expired' : 'pending');
+                        html += '<tr class="ps-dry-run-row ps-dry-run-row--' + r.status + '">';
+                        html += '<td class="thin ps-nowrap-cell"><span class="status ' + statusClass + '"></span> ' + r.status + '</td>';
+                        html += '<td><strong>' + (r.title || '') + '</strong><br><small class="light">' + (r.sku || '') + '</small></td>';
+                        html += '<td class="thin ps-nowrap-cell">' + fmt(r.oldPrice) + '</td>';
+                        html += '<td class="thin ps-nowrap-cell">' + fmt(r.newPrice) + '</td>';
+                        html += '<td class="thin ps-nowrap-cell">' + fmt(r.oldPromotionalPrice) + '</td>';
+                        html += '<td class="thin ps-nowrap-cell">' + fmt(r.newPromotionalPrice) + '</td>';
+                        html += '</tr>';
+                        if (r.message && r.status === 'error') {
+                            html += '<tr class="ps-error-row"><td colspan="6" class="ps-error-cell">' + r.message + '</td></tr>';
+                        }
+                    });
+                    html += '</tbody></table>';
+                }
+
+                html += '<div class="ps-dry-run-footer">';
+                html += '<button type="button" class="btn small ps-dry-run-close-btn">Close</button>';
+                html += '</div>';
+                html += '</div>';
+
+                panel.innerHTML = html;
+                panel.style.display = '';
+                panel.querySelector('.ps-dry-run-close-btn').addEventListener('click', function () {
+                    panel.style.display = 'none';
+                    panel.innerHTML = '';
+                });
+                panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            }).catch(function (e) {
+                Craft.cp.displayError((e.response && e.response.data && e.response.data.message) || 'Dry-run failed.');
+            }).finally(function () {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            });
+        });
+    });
 })();
 

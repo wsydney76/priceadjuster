@@ -117,6 +117,60 @@ class PriceScheduleController extends Controller
         );
     }
 
+    /**
+     * Dry-run apply: simulate applyRecords() without writing to the DB.
+     *
+     * Expects POST body: rule, date
+     */
+    public function actionDryRunApply(): Response
+    {
+        $this->requireCpRequest();
+        $this->requirePermission('utility:price-schedule');
+        $this->requirePostRequest();
+
+        $request = Craft::$app->getRequest();
+        $rule    = $request->getRequiredBodyParam('rule');
+        $date    = $request->getRequiredBodyParam('date');
+
+        $records = PriceadjusterPlugin::getInstance()->scheduler->getScheduleRecords(
+            applied: false,
+            date: $date,
+            rule: $rule,
+            requireFilter: true,
+        );
+
+        if (empty($records)) {
+            return $this->asSuccess('No pending records found for this rule/date.', [
+                'results' => [],
+                'summary' => 'No pending records.',
+            ]);
+        }
+
+        $results = PriceadjusterPlugin::getInstance()->scheduler->applyRecords($records, false, $rule, true);
+
+        $output = [];
+        foreach ($results as $item) {
+            $record   = $item['record'] ?? null;
+            $output[] = [
+                'status'              => $item['status'],
+                'message'             => $item['message'] ?? '',
+                'title'               => $record ? $record->title : '',
+                'sku'                 => $record ? $record->sku : '',
+                'oldPrice'            => $record ? (float)$record->oldPrice : null,
+                'newPrice'            => $record ? (float)$record->newPrice : null,
+                'oldPromotionalPrice' => ($record && $record->oldPromotionalPrice !== null) ? (float)$record->oldPromotionalPrice : null,
+                'newPromotionalPrice' => ($record && $record->newPromotionalPrice !== null) ? (float)$record->newPromotionalPrice : null,
+            ];
+        }
+
+        $appliedCount = count(array_filter($results, fn($r) => $r['status'] === 'applied'));
+        $skippedCount = count(array_filter($results, fn($r) => $r['status'] === 'skipped'));
+        $errorCount   = count(array_filter($results, fn($r) => $r['status'] === 'error'));
+        $summary      = "[DRY RUN] {$appliedCount} would be applied, {$skippedCount} skipped, {$errorCount} errors.";
+
+        return $this->asSuccess($summary, ['results' => $output, 'summary' => $summary]);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

@@ -31,6 +31,7 @@
   - `_priceadjuster/price-schedule/delete-selected`
   - `_priceadjuster/price-schedule/delete-by-rule`
   - `_priceadjuster/price-schedule/update-effective-date`
+  - `_priceadjuster/price-schedule/dry-run-apply`
 
 ## Developer Workflow (See `README.md`)
 - Typical sequence: `scheduler/preview` -> `scheduler/stage` -> `export/index` -> `import/index` -> `scheduler/apply`.

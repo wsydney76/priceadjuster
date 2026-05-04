@@ -137,8 +137,18 @@
                         >
                         <button type="button" class="btn ps-update-date-btn">Update effective date</button>
                     </span>
+                    <span class="ps-toolbar-divider"></span>
+                    <span class="ps-toolbar-group">
+                        <button type="button"
+                                class="btn ps-dry-run-apply-btn"
+                                data-rule="{{ currentRule }}"
+                                data-date="{{ date }}">
+                            Dry-run Apply
+                        </button>
+                    </span>
                 </div>
             </form>
+            <div class="ps-dry-run-results" style="display:none;" data-date="{{ date }}"></div>
         {% endif %}
         {% if applied is not empty %}
             <details class="ps-applied-details">
