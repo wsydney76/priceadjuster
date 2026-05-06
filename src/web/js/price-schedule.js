@@ -289,7 +289,7 @@
                         html += '<td class="thin ps-nowrap-cell">' + fmt(r.oldPromotionalPrice) + '</td>';
                         html += '<td class="thin ps-nowrap-cell">' + fmt(r.newPromotionalPrice) + '</td>';
                         html += '</tr>';
-                        if (r.message && r.status === 'error') {
+                        if (r.message && (r.status === 'error' || r.status === 'skipped')) {
                             html += '<tr class="ps-error-row"><td colspan="6" class="ps-error-cell">' + r.message + '</td></tr>';
                         }
                     });

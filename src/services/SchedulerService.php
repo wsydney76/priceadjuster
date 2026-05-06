@@ -227,8 +227,21 @@ class SchedulerService extends Component
                 continue;
             }
 
+            // Compute target promo price up front so it can be used in the no-change check.
+            $newPromoPrice = ($resetPromotion || $record->newPromotionalPrice === null)
+                ? null
+                : $this->zeroAsNull((float)$record->newPromotionalPrice);
+
+            $currentPrice = (float)$variant->basePrice;
+            $currentPromo = $variant->basePromotionalPrice !== null
+                ? $this->zeroAsNull((float)$variant->basePromotionalPrice)
+                : null;
+            $noChange = ($currentPrice === $newPrice && $currentPromo === $newPromoPrice);
+
             if ($dryRun) {
-                if (!$record->validate()) {
+                if ($noChange) {
+                    $this->addResult(['status' => 'skipped', 'record' => $record, 'message' => '[DRY RUN] No price change: ' . $record->getMessageString()]);
+                } elseif (!$record->validate()) {
                     $this->addResult([
                         'status'  => 'error',
                         'record'  => $record,
@@ -241,10 +254,22 @@ class SchedulerService extends Component
                 continue;
             }
 
+            if ($noChange) {
+                $record->appliedAt = Craft::$app->formatter->asDatetime('now', 'php:Y-m-d H:i:s');
+                if (!$record->save()) {
+                    $this->addResult([
+                        'status'  => 'error',
+                        'record'  => $record,
+                        'message' => "Validation failed marking no-change record: {$record->title}",
+                        'errors'  => $record->getErrors(),
+                    ]);
+                } else {
+                    $this->addResult(['status' => 'skipped', 'record' => $record, 'message' => 'Skipped (no price change): ' . $record->getMessageString()]);
+                }
+                continue;
+            }
+
             $variant->basePrice = $newPrice;
-            $newPromoPrice      = ($resetPromotion || $record->newPromotionalPrice === null)
-                ? null
-                : $this->zeroAsNull((float)$record->newPromotionalPrice);
             $variant->basePromotionalPrice = $newPromoPrice;
 
             if (!Craft::$app->elements->saveElement($variant)) {
@@ -304,8 +329,21 @@ class SchedulerService extends Component
                 continue;
             }
 
+            // Compute target rollback promo price up front so it can be used in the no-change check.
+            $targetOldPromo = $record->oldPromotionalPrice !== null
+                ? ((float)$record->oldPromotionalPrice ?: null)
+                : null;
+
+            $currentPrice = (float)$variant->basePrice;
+            $currentPromo = $variant->basePromotionalPrice !== null
+                ? $this->zeroAsNull((float)$variant->basePromotionalPrice)
+                : null;
+            $noChange = ($currentPrice === $oldPrice && $currentPromo === $targetOldPromo);
+
             if ($dryRun) {
-                if (!$record->validate()) {
+                if ($noChange) {
+                    $this->addResult(['status' => 'skipped', 'record' => $record, 'message' => '[DRY RUN] No price change: ' . $record->getMessageString()]);
+                } elseif (!$record->validate()) {
                     $this->addResult([
                         'status'  => 'error',
                         'record'  => $record,
@@ -318,10 +356,23 @@ class SchedulerService extends Component
                 continue;
             }
 
+            if ($noChange) {
+                $record->appliedAt = null;
+                if (!$record->save()) {
+                    $this->addResult([
+                        'status'  => 'error',
+                        'record'  => $record,
+                        'message' => "Validation failed marking no-change record: {$record->title}",
+                        'errors'  => $record->getErrors(),
+                    ]);
+                } else {
+                    $this->addResult(['status' => 'skipped', 'record' => $record, 'message' => 'Skipped (no price change): ' . $record->getMessageString()]);
+                }
+                continue;
+            }
+
             $variant->basePrice            = $oldPrice;
-            $variant->basePromotionalPrice = $record->oldPromotionalPrice !== null
-                ? ((float)$record->oldPromotionalPrice ?: null)
-                : null;
+            $variant->basePromotionalPrice = $targetOldPromo;
 
             if (!Craft::$app->elements->saveElement($variant)) {
                 $this->addResult(['status' => 'error', 'record' => $record, 'message' => "Failed rolling back variant {$variant->id}"]);

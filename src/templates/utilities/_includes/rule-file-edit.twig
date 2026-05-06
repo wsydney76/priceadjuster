@@ -195,7 +195,7 @@
     </button>
 
     {# Template for new entries — never submitted, cloned by JS #}
-    <template id="rf-entry-tpl">
+    <template id="rf-entry-tpl" data-code-editor-endpoint="{{ alias('@codeEditorEndpointUrl') }}">
         {{ self.ruleEntry('__IDX__', {}) }}
     </template>
 
@@ -361,13 +361,20 @@
 
     // ── Add new entry (starts expanded) ──────────────────────────────────────
     addBtn.addEventListener('click', function() {
-        var html    = template.innerHTML.replace(/rules\[__IDX__\]/g, 'rules[' + idx + ']');
+        var endpointUrl = template.dataset.codeEditorEndpoint || '';
+        var monacoOpts  = '{"ariaLabel":"Code Editor field.","language":"json"}';
+        var editorOpts  = '{"singleLineEditor":false,"wrapperClass":"","placeholderText":"","displayLanguageIcon":true}';
+        var html    = template.innerHTML.replace(/__IDX__/g, idx);
         var wrapper = document.createElement('div');
         wrapper.innerHTML = html;
         var entry = wrapper.firstElementChild;
-
         container.appendChild(entry);
         setupEntry(entry, true);   // new entries start expanded
+        // Initialise Monaco editors for the two code-editor textareas
+        if (window.makeMonacoEditor) {
+            window.makeMonacoEditor('criteria-' + idx,         'Code Editor', monacoOpts, editorOpts, endpointUrl);
+            window.makeMonacoEditor('variant-criteria-' + idx, 'Code Editor', monacoOpts, editorOpts, endpointUrl);
+        }
         idx++;
         renumber();
 
